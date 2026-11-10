@@ -1,19 +1,36 @@
 # SwiftlyS2 Panel
 
-A modular web panel for CS2 communities running [SwiftlyS2](https://swiftlys2.net). It installs on
-any web host that accepts plain file uploads (SFTP only: no shell, no Composer, no Node) and works
-on the same database tables the plugins use. Each module adds its own pages and menu entries when
-it is enabled.
+Modular, feature-rich web panel for any CS2 project running the [SwiftlyS2](https://swiftlys2.net)
+framework, simple to install and set up. I'm making the official SW2 panel website, which can be
+hosted on regular web hosting services. It works on the same database tables the plugins use, and
+each module adds its own pages and menu entries when it is enabled.
 
-> **Status: design and proof of concept.** No PHP has been written yet. This repository holds the
-> architecture document and clickable HTML mockups.
+**No need to compile website files, run `nodejs`, `php artisan` or some other bs.**
+Simply drop all of the files from the latest release archive onto your host and refresh the page. EZ :sunglasses:
 
-## Contents
+## Live Demo Website (just design mockups): https://sw2panel.shmitz.xyz
 
-| Path | What it is |
-|---|---|
-| [`docs/POC.md`](docs/POC.md) | Toolset, architecture, file and database structure, module system, each plugin's table contract, roles and permissions, theming, security, install and update, roadmap, open questions |
-| [`design/mockups/`](design/mockups/index.html) | Static mockups: landing, servers, punishments, leaderboard, player profile, skin changer, shop, admin dashboard, roles, theme editor, admins and groups, shop administration, design system |
+> [!WARNING]
+> It is still in its infant :baby: stage. Do not expect a fully working website until at least **January 2027** :bangbang:
+
+> [!NOTE]
+> This repo and the designs were created only a few hours ago, and I will add more details shortly.<br>
+> No PHP has been written yet: for now the repository holds the architecture document and clickable HTML mockups.
+
+> [!TIP]
+> :raised_hands: Any plugin support requests or customizability requests are welcome!
+
+## Supported plugins
+
+Supported by this panel out of the box from day one:
+
+- [Admins](https://github.com/SwiftlyS2-Plugins/Admins)
+- [Economy](https://github.com/SwiftlyS2-Plugins/Economy) (tied to ShopCore)
+- [ShopCore](https://github.com/SwiftlyS2-Plugins/ShopCore)
+- [VIPCore](https://github.com/SwiftlyS2-Plugins/VIPCore)
+- [Ranks](https://github.com/SwiftlyS2-Plugins/Ranks)
+- [Cookies](https://github.com/SwiftlyS2-Plugins/Cookies) (for user settings)
+- [WeaponSkins](https://github.com/samyycX/WeaponSkins) (WS)
 
 ## Planned modules
 
@@ -26,6 +43,13 @@ it is enabled.
 | VIPCore | VIPCore | VIP badges and tiers; staff grants |
 | Economy | Economy | Balance leaderboards |
 | Shop | ShopCore and its modules: item state in Cookies' `PlayerCookies`, credits in Economy, `shopcore_ledger` | Shop with credits, inventory and history; buying and selling while off the servers; staff ledger, credits and catalog |
+
+## Contents
+
+| Path | What it is |
+|---|---|
+| [`docs/POC.md`](docs/POC.md) | Toolset, architecture, file and database structure, module system, each plugin's table contract, roles and permissions, theming, security, install and update, roadmap, open questions |
+| [`design/mockups/`](design/mockups/index.html) | Static mockups: landing, servers, punishments, leaderboard, player profile, skin changer, shop, admin dashboard, roles, theme editor, admins and groups, shop administration, design system |
 
 ## Viewing the mockups
 

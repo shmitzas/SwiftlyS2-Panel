@@ -38,7 +38,7 @@
             <div class="pick ms-xl-auto" id="status"></div>
           </div>
           <div class="pick mb-2" id="kinds"></div>
-          <div class="sp-table-wrap"><table class="sp-table hover" id="table"></table></div>
+          <div class="sp-table-wrap fit"><table class="sp-table hover" id="table"></table></div>
           <div class="d-flex justify-content-between align-items-center mt-3">
             <span class="fs-8 text-faint" id="count"></span>
             <nav aria-label="Pages"><ul class="pagination pagination-sm mb-0">
@@ -119,22 +119,22 @@
     const list = filtered();
     const comm = state.tab === 'comms';
     mount('#table', html`<thead><tr>
-        <th>#</th>${comm ? html`<th>Type</th>` : ''}<th>Player</th><th>Reason</th><th>Length</th><th>Issued</th><th>Ends</th>
-        <th class="d-none d-xl-table-cell">Admin</th><th>Scope</th>${seeIp ? html`<th>IP</th>` : ''}<th>Status</th>${staff ? html`<th></th>` : ''}</tr></thead>
+        <th class="opt-1">#</th>${comm ? html`<th>Type</th>` : ''}<th>Player</th><th>Reason</th><th class="opt-3">Length</th><th class="opt-1">Issued</th><th>Ends</th>
+        <th class="opt-2">Admin</th><th>Scope</th>${seeIp ? html`<th class="opt-2">IP</th>` : ''}<th>Status</th>${staff ? html`<th></th>` : ''}</tr></thead>
       <tbody>${list.map((r) => {
         const pct = A.progress(r);
         const st = statusOf(r);
         return html`<tr class="${st === 'active' ? '' : 'muted'}" data-id="${r.Id}">
-          <td class="mono fs-8 text-faint">#${comm && r.ids.length > 1 ? r.ids.join('+') : r.Id}</td>
+          <td class="opt-1 mono fs-8 text-faint">#${comm && r.ids.length > 1 ? r.ids.join('+') : r.Id}</td>
           ${comm ? html`<td>${A.kindPill(r.kind)}</td>` : ''}
           <td>${r.SteamId64 !== '0' ? SP.playerLink(r.SteamId64, r.PlayerName) : html`<span class="sp-player">${SP.avatar('?', r.PlayerIp, '')}<span><span class="sp-player-name d-block">${r.PlayerName}</span><span class="sp-player-sub">IP only</span></span></span>`}</td>
           <td><span class="d-flex gap-2 align-items-center">${r.Reason}${A.typeBadge(r)}</span></td>
-          <td class="mono fs-7">${A.length(r)}</td>
-          <td class="fs-7 text-muted2 text-nowrap" title="${fmt.date(r.CreatedAt)}">${fmt.ago(r.CreatedAt)}</td>
+          <td class="opt-3 mono fs-7">${A.length(r)}</td>
+          <td class="opt-1 fs-7 text-muted2 text-nowrap" title="${fmt.date(r.CreatedAt)}">${fmt.ago(r.CreatedAt)}</td>
           <td class="ends fs-7">${A.timeline(r, r.kind === 'ban' ? 'ban' : r.kind)}${pct !== null ? html`<div class="sp-meter tone-danger" style="--v:${pct}%"><i></i></div>` : ''}</td>
-          <td class="d-none d-xl-table-cell fs-7">${r.AdminSteamId64 === '0' ? html`<span class="text-faint">Console</span>` : html`<a href="profile.html?id=${r.AdminSteamId64}">${r.AdminName}</a>`}</td>
+          <td class="opt-2 fs-7">${r.AdminSteamId64 === '0' ? html`<span class="text-faint">Console</span>` : html`<a href="profile.html?id=${r.AdminSteamId64}">${r.AdminName}</a>`}</td>
           <td>${A.scope(r)}</td>
-          ${seeIp ? html`<td class="mono fs-8 text-muted2">${r.PlayerIp || '—'}</td>` : ''}
+          ${seeIp ? html`<td class="opt-2 mono fs-8 text-muted2">${r.PlayerIp || '—'}</td>` : ''}
           <td>${A.statusPill(r, r.kind === 'ban' ? 'ban' : r.kind)}</td>
           ${staff ? html`<td class="text-end">${st === 'active' ? html`<button class="btn btn-success btn-sm" data-lift="${r.Id}" title="${r.kind === 'ban' ? 'Unban' : 'Lift'}" data-bs-toggle="tooltip"><i class="bi bi-unlock-fill"></i></button>` : ''}</td>` : ''}
         </tr>`;

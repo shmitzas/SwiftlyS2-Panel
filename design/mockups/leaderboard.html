@@ -100,10 +100,10 @@
     if (!rows.length) return mount('#main', html`<div class="sp-empty"><i class="bi bi-calendar-x"></i>${state.period === 0 ? 'Older figures are counted in All time.' : 'Nobody is ranked in this season.'}</div>`);
     const val = (r) => col === 'points' ? R.rating(r.points, 'sm') : col === 'kills' ? html`<span class="sp-stat-value fs-5">${fmt.num(r.kills)}</span>` : html`<span class="sp-stat-value fs-5">${fmt.playtime(r.playtime)}</span>`;
     mount('#main', html`${podium(rows, val)}
-      <div class="sp-table-wrap"><table class="sp-table hover">
+      <div class="sp-table-wrap fit"><table class="sp-table hover">
         <thead><tr><th>#</th><th>Player</th><th>Rank</th><th class="${col === 'points' ? 'sorted' : ''} sortable" data-view="points">XP</th>
-          <th class="r ${col === 'kills' ? 'sorted' : ''} sortable" data-view="kills">Kills</th><th class="r">K/D</th><th class="r d-none d-md-table-cell">HS</th>
-          <th class="r d-none d-lg-table-cell">Accuracy</th><th class="r d-none d-xl-table-cell">Rounds</th>
+          <th class="r ${col === 'kills' ? 'sorted' : ''} sortable" data-view="kills">Kills</th><th class="r">K/D</th><th class="r opt-3">HS</th>
+          <th class="r opt-2">Accuracy</th><th class="r opt-1">Rounds</th>
           <th class="r ${col === 'playtime' ? 'sorted' : ''} sortable" data-view="playtime">Playtime</th></tr></thead>
         <tbody>${rows.map((r, i) => {
           const tier = R.tier(r.points);
@@ -115,9 +115,9 @@
             <td>${R.rating(r.points, 'sm')}</td>
             <td class="r">${fmt.num(r.kills)}</td>
             <td class="r ${fmt.kd(r.kills, r.deaths) >= 1 ? 'text-success2' : 'text-muted2'}">${fmt.kd(r.kills, r.deaths).toFixed(2)}</td>
-            <td class="r d-none d-md-table-cell">${fmt.pct(r.headshots, r.kills)}%</td>
-            <td class="r d-none d-lg-table-cell">${fmt.pct(r.hits, r.hits + r.misses)}%</td>
-            <td class="r d-none d-xl-table-cell text-muted2">${fmt.pct(r.round_wins, rounds)}% <span class="text-faint fs-8">of ${fmt.num(rounds)}</span></td>
+            <td class="r opt-3">${fmt.pct(r.headshots, r.kills)}%</td>
+            <td class="r opt-2">${fmt.pct(r.hits, r.hits + r.misses)}%</td>
+            <td class="r opt-1 text-muted2">${fmt.pct(r.round_wins, rounds)}% <span class="text-faint fs-8">of ${fmt.num(rounds)}</span></td>
             <td class="r mono fs-7">${fmt.playtime(r.playtime)}</td></tr>`;
         })}</tbody></table></div>`);
   }
@@ -130,12 +130,12 @@
         which replaces core's scoring there: the exact rating lives in <span class="mono">comp_ranks_elopoints</span> and its rounded value in that ladder's points.
         Levels are the module's 10-band <span class="mono">ranks-elo.jsonc</span> (1,000 is where an unrated player enters).</div></div>
       ${podium(rows.map((r) => ({ ...r, name: name(r.steam_id) })), (r) => html`<div class="d-flex align-items-center gap-2">${R.level(r.rating)}<span class="sp-stat-value fs-5">${fmt.num(r.rating, 1)}</span></div>`)}
-      <div class="sp-table-wrap"><table class="sp-table hover"><thead><tr><th>#</th><th>Player</th><th>Level</th><th class="r">Rating</th><th class="r">Matches</th><th class="r">Abandons</th><th class="r d-none d-md-table-cell">Updated</th></tr></thead>
+      <div class="sp-table-wrap fit"><table class="sp-table hover"><thead><tr><th>#</th><th>Player</th><th>Level</th><th class="r">Rating</th><th class="r">Matches</th><th class="r">Abandons</th><th class="r opt-1">Updated</th></tr></thead>
         <tbody>${rows.map((r, i) => html`<tr class="${r.steam_id === SP.viewer.steamId ? 'chosen' : ''}">
           <td class="pos">${i + 1}</td><td>${SP.playerLink(r.steam_id, name(r.steam_id))}</td><td>${R.level(r.rating)}</td>
           <td class="r sp-display fs-6">${fmt.num(r.rating, 1)}</td><td class="r">${r.matches}</td>
           <td class="r ${r.abandons ? 'text-danger2' : 'text-faint'}">${r.abandons}</td>
-          <td class="r d-none d-md-table-cell text-muted2 fs-7">${fmt.ago(fmt.sqlDate(r.updated_at))}</td></tr>`)}</tbody></table></div>`);
+          <td class="r opt-1 text-muted2 fs-7">${fmt.ago(fmt.sqlDate(r.updated_at))}</td></tr>`)}</tbody></table></div>`);
   }
 
   function renderLadder() {

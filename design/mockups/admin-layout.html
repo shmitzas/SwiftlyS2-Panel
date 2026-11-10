@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Layout · SwiftlyS2 Panel mockup</title>
+  <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/panel.css">
+  <script src="assets/js/sample-data.js"></script>
+  <script src="assets/js/panel.js"></script>
+  <style>
+    .picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(190px, calc((100% - 1.5rem) / 3)), 1fr)); gap: .75rem; }
+    .pick { display: flex; flex-direction: column; gap: .55rem; padding: .75rem; text-align: left; background: var(--sp-surface-row); border: 1px solid var(--sp-edge); border-radius: var(--sp-radius-lg); color: var(--sp-text); }
+    .pick:hover { border-color: color-mix(in srgb, var(--sp-text) 24%, transparent); }
+    .pick.active { border-color: var(--sp-accent); box-shadow: inset 0 0 0 1px var(--sp-accent); }
+    .wire { display: grid; gap: 4px; height: 86px; padding: 6px; background: var(--sp-surface); border-radius: var(--sp-radius); }
+    .wire i { border-radius: 3px; background: color-mix(in srgb, var(--sp-text) 12%, transparent); }
+    .wire i.nav { background: var(--sp-accent-dim); }
+    .wire.top { grid-template: 12px 1fr 1fr / 7fr 5fr; }
+    .wire.top .nav { grid-column: 1 / -1; }
+    .wire.left { grid-template: 1fr 1fr / 22% 7fr 5fr; }
+    .wire.left .nav { grid-row: 1 / -1; }
+    .wire.right { grid-template: 1fr 1fr / 7fr 5fr 22%; }
+    .wire.right .nav { grid-row: 1 / -1; grid-column: 3; }
+    /* Width picks draw the chosen menu too; .body is the content, held to a centred column or stretched. */
+    .wire.frame { display: flex; }
+    .wire.frame.top { flex-direction: column; }
+    .wire.frame.right { flex-direction: row-reverse; }
+    .wire.frame .nav { flex: 0 0 12px; }
+    .wire.frame:not(.top) .nav { flex-basis: 22%; }
+    .wire.frame .body { flex: 1; display: grid; grid-template: 1fr 1fr / 7fr 5fr; gap: 4px; }
+    .wire.frame.fixed .body { margin-inline: 16%; }
+
+    .sort { display: flex; flex-direction: column; gap: 3px; margin: 0; padding: 0; list-style: none; }
+    .sort-item { display: flex; align-items: center; gap: .6rem; min-height: 44px; padding: .3rem .4rem .3rem .65rem; background: var(--sp-surface-row); border: 1px solid transparent; border-radius: var(--sp-radius); cursor: grab; user-select: none; }
+    .sort-item:hover { border-color: var(--sp-edge); }
+    .sort-item.dragging { opacity: .5; border: 1px dashed var(--sp-accent-half); }
+    .sort-item .handle { color: var(--sp-text-faint); }
+    .sort-item.off { color: var(--sp-text-faint); }
+    .sort-item.pinned { cursor: default; background: transparent; border: 1px dashed var(--sp-edge); color: var(--sp-text-muted); }
+    .sort-item .btn-icon { --bs-btn-padding-y: .15rem; --bs-btn-padding-x: .4rem; }
+
+    .schema { display: flex; flex-direction: column; gap: 5px; padding: 8px; background: var(--sp-surface); border-radius: var(--sp-radius); }
+    .schema-row { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 5px; }
+    .schema-row span { grid-column: span var(--span); min-height: 36px; padding: .45rem .55rem; overflow: hidden; background: color-mix(in srgb, var(--sp-text) 8%, transparent); border-radius: 4px; color: var(--sp-text-muted); font-size: .74rem; white-space: nowrap; text-overflow: ellipsis; }
+    .tabs-preview { display: flex; flex-wrap: wrap; gap: .35rem; padding: 8px; background: var(--sp-surface); border-radius: var(--sp-radius); }
+    section[id] { scroll-margin-top: calc(var(--sp-sticky-top) + 4px); }
+  </style>
+</head>
+<body>
+<div id="sp-top"></div>
+<main class="sp-container py-4" id="page"></main>
+<div id="sp-foot"></div>
+<script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script>
+(() => {
+  SP.layout('admin');
+  const { html, mount } = SP;
+  const gate = SP.adminGate('panel.layout');
+  if (gate) { mount('#page', gate); return; }
+
+  /* The draft is previewed on this page only (SP.previewLayout); Save writes it for every visitor. */
+  const copy = (cfg) => JSON.parse(JSON.stringify(cfg));
+  const same = (a, b) => a.nav === b.nav && a.width === b.width && JSON.stringify(Object.entries(a.order).sort()) === JSON.stringify(Object.entries(b.order).sort());
+  let draft = copy(SP.layoutCfg.get());
+  SP.previewLayout(draft);
+
+  const navNames = { top: ['Top bar', 'The menu across the top of every page'], left: ['Side bar · left', 'A menu down the left edge'], right: ['Side bar · right', 'A menu down the right edge'] };
+  const widthNames = { fixed: ['Centred', 'At most 1,360 px wide, like container-xxl'], fluid: ['Full width', 'Edge to edge, like container-fluid'] };
+  const sizeName = { wide: 'Wide', narrow: 'Narrow', full: 'Full width' };
+  const defaults = (group) => (group === 'nav' ? SP.nav.map((n) => n.id) : SP.arrangeable[group].panels.map(([id]) => id));
+  const pages = [];
+  for (const [key, g] of Object.entries(SP.arrangeable)) {
+    const id = key.split('.')[0];
+    let page = pages.find((p) => p.id === id);
+    if (!page) pages.push(page = { id, name: g.page, href: g.href, groups: [] });
+    page.groups.push(key);
+  }
+
+  const sortItem = ({ id, name, icon, badges, off }) => html`<li class="sort-item ${off ? 'off' : ''}" draggable="true" data-id="${id}">
+    <i class="bi bi-grip-vertical handle"></i><span class="flex-grow-1 min-w-0 text-truncate">${icon ? html`<i class="bi bi-${icon} me-2"></i>` : ''}${name}</span>${badges}
+    <button class="btn btn-ghost btn-sm btn-icon" data-move="-1" aria-label="Move ${name} up"><i class="bi bi-arrow-up"></i></button>
+    <button class="btn btn-ghost btn-sm btn-icon" data-move="1" aria-label="Move ${name} down"><i class="bi bi-arrow-down"></i></button></li>`;
+
+  function navList() {
+    const byId = new Map(SP.nav.map((n) => [n.id, n]));
+    return html`<ul class="sort" data-sort="nav" aria-label="Menu order">${SP.order('nav', defaults('nav')).map((id) => {
+        const n = byId.get(id);
+        const off = n.module && !SP.modules.enabled(n.module);
+        return sortItem({ id, name: n.label, icon: n.icon, off,
+          badges: html`${n.auth ? html`<span class="sp-badge tone-info">Signed in</span>` : ''}${off ? html`<span class="sp-badge">Module off</span>` : ''}` });
+      })}</ul>
+      <div class="sort-item pinned mt-1"><i class="bi bi-lock-fill"></i><span class="flex-grow-1"><i class="bi bi-shield-lock-fill me-2"></i>Admin</span><span class="fs-8 text-faint pe-2">staff only · always last</span></div>`;
+  }
+
+  /** The page as the pairing rule will build it, from the panels whose modules are on; a tab group shows its tab strip. */
+  function preview(ids, meta, tabs) {
+    if (tabs) return html`<div class="tabs-preview" aria-hidden="true">${ids.map((id, i) => html`<span class="sp-tab ${i === 0 ? 'active' : ''}">${meta.get(id)[1]}</span>`)}</div>`;
+    const spans = SP.spans(ids.map((id) => meta.get(id)[2]));
+    const rows = [];
+    ids.forEach((id, i) => { if (!rows.length || rows.at(-1).used + spans[i] > 12) rows.push({ used: 0, cells: [] }); rows.at(-1).cells.push([id, spans[i]]); rows.at(-1).used += spans[i]; });
+    return html`<div class="schema" aria-hidden="true">${rows.map((r) => html`<div class="schema-row">${r.cells.map(([id, span]) => html`<span style="--span:${span}">${meta.get(id)[1]}</span>`)}</div>`)}</div>`;
+  }
+
+  function group(key) {
+    const g = SP.arrangeable[key];
+    const meta = new Map(g.panels.map((p) => [p[0], p]));
+    const on = (id) => !meta.get(id)[3] || SP.modules.enabled(meta.get(id)[3]);
+    const ids = SP.order(key, defaults(key));
+    return html`<div class="row g-3 mb-3">
+      <div class="col-md-6">
+        <div class="d-flex flex-wrap align-items-baseline gap-2 mb-2"><span class="sp-stat-label">${g.group ?? 'Panels'}</span>${g.note ? html`<span class="fs-8 text-faint">${g.note}</span>` : ''}</div>
+        <ul class="sort" data-sort="${key}" aria-label="${g.page}: ${g.group ?? 'panels'}">${ids.map((id) => {
+          const [, label, size] = meta.get(id);
+          return sortItem({ id, name: label, off: !on(id),
+            badges: html`${size ? html`<span class="sp-badge ${size === 'full' ? '' : 'tone-info'}">${sizeName[size]}</span>` : ''}${on(id) ? '' : html`<span class="sp-badge">Module off</span>`}` });
+        })}</ul></div>
+      <div class="col-md-6"><div class="sp-stat-label mb-2">Preview</div>${preview(ids.filter(on), meta, g.panels.every((p) => !p[2]))}</div>
+    </div>`;
+  }
+
+  function render() {
+    const dirty = !same(draft, SP.layoutCfg.get());
+    mount('#page', html`<section class="sp-shell">
+      <div class="sp-shell-head">
+        <div><span class="sp-eyebrow">Admin</span><h1 class="sp-title">Layout</h1></div>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          ${dirty ? html`<span class="sp-pill tone-caution"><i class="bi bi-pencil-fill"></i>Unsaved changes</span>` : html`<span class="sp-pill tone-success"><i class="bi bi-check2"></i>Saved</span>`}
+          <button class="btn btn-ghost btn-sm" data-defaults>Defaults</button>
+          <button class="btn btn-solid btn-sm" data-save ${dirty ? '' : SP.raw('disabled')}><i class="bi bi-check2-circle me-1"></i>Save layout</button>
+        </div>
+      </div>
+      <div class="sp-rule"></div>
+      <div class="sp-shell-body"><div class="sp-locker">
+        <aside class="sp-side">${SP.adminNav('layout')}</aside>
+        <div class="min-w-0">
+          <section id="navigation" class="mb-4">
+            <h2 class="sp-section-title">Navigation <small>for every visitor · below 992 px a side bar folds into the top bar</small></h2>
+            <div class="picks">${Object.entries(navNames).map(([id, [label, note]]) => html`<button class="pick ${draft.nav === id ? 'active' : ''}" data-nav="${id}" aria-pressed="${draft.nav === id}">
+              <span class="wire ${id}" aria-hidden="true"><i class="nav"></i><i></i><i></i><i></i><i></i></span>
+              <span class="sp-display fs-6">${label}</span><span class="fs-8 text-faint">${note}</span></button>`)}</div>
+          </section>
+          <section id="width" class="mb-4">
+            <h2 class="sp-section-title">Content width <small>for every visitor · the two differ only where the window is wider than the centred column</small></h2>
+            <div class="picks">${Object.entries(widthNames).map(([id, [label, note]]) => html`<button class="pick ${draft.width === id ? 'active' : ''}" data-width="${id}" aria-pressed="${draft.width === id}">
+              <span class="wire frame ${draft.nav} ${id}" aria-hidden="true"><i class="nav"></i><span class="body"><i></i><i></i><i></i><i></i></span></span>
+              <span class="sp-display fs-6">${label}</span><span class="fs-8 text-faint">${note}</span></button>`)}</div>
+          </section>
+          <section id="menu" class="mb-4">
+            <h2 class="sp-section-title">Menu order <small>drag, or use the arrows · the menu on this page follows</small></h2>
+            <div class="row g-3"><div class="col-lg-7">${navList()}</div>
+              <div class="col-lg-5"><div class="sp-callout"><i class="bi bi-info-circle-fill"></i><div>Entries of disabled modules keep their place, ready for when the module is turned on.
+                <strong>Skins</strong> shows to signed-in players only; <strong>Admin</strong> to staff, always last.</div></div></div></div>
+          </section>
+          <h2 class="sp-section-title">Page panels <small>public pages · admin pages keep their layout</small></h2>
+          ${pages.map((p) => html`<section class="sp-panel mb-3" id="${p.id}">
+            <div class="d-flex align-items-center justify-content-between gap-2 mb-3"><span class="sp-display fs-5">${p.name}</span>
+              <a class="btn btn-sp btn-sm" href="${p.href}"><i class="bi bi-box-arrow-up-right me-1"></i>Open page</a></div>
+            ${p.groups.map(group)}</section>`)}
+          <div class="fs-8 text-faint">A wide panel next to a narrow one share a row; anything else spans the full width, so no order leaves a gap.
+            Servers, Leaderboard, Punishments, Skins and Shop are one component each: they have nothing to rearrange.</div>
+        </div>
+      </div></div>
+    </section>`);
+  }
+
+  function commit(list, focus) {
+    const key = list.dataset.sort;
+    const ids = [...list.querySelectorAll('.sort-item[data-id]')].map((li) => li.dataset.id);
+    if (ids.join() === defaults(key).join()) delete draft.order[key]; else draft.order[key] = ids;
+    if (key === 'nav') SP.previewLayout(draft);
+    render();
+    if (focus) document.querySelector(`[data-sort="${key}"] [data-id="${focus.id}"] [data-move="${focus.dir}"]`)?.focus();
+  }
+
+  document.addEventListener('click', (e) => {
+    const pick = e.target.closest('[data-nav], [data-width]');
+    if (pick) {
+      const [key, value] = pick.dataset.nav ? ['nav', pick.dataset.nav] : ['width', pick.dataset.width];
+      draft[key] = value;
+      SP.previewLayout(draft);
+      render();
+      document.querySelector(`[data-${key}="${value}"]`)?.focus();
+      return;
+    }
+    const move = e.target.closest('[data-move]');
+    if (move) {
+      const li = move.closest('.sort-item');
+      const sibling = move.dataset.move === '-1' ? li.previousElementSibling : li.nextElementSibling;
+      if (!sibling) return;
+      li.parentElement.insertBefore(...(move.dataset.move === '-1' ? [li, sibling] : [sibling, li]));
+      commit(li.parentElement, { id: li.dataset.id, dir: move.dataset.move });
+      return;
+    }
+    if (e.target.closest('[data-save]')) { SP.layoutCfg.save(copy(draft)); SP.toast('Layout saved', 'Every visitor gets it now. Open a public page to see it.', 'tone-success'); render(); }
+    if (e.target.closest('[data-defaults]')) { draft = copy(SP.layoutCfg.defaults); SP.previewLayout(draft); render(); SP.toast('Defaults restored', 'Save to apply them for everyone.', 'tone-info'); }
+  });
+
+  let dragged = null;
+  document.addEventListener('dragstart', (e) => {
+    dragged = e.target.closest?.('.sort-item[data-id]') ?? null;
+    if (!dragged) return;
+    dragged.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragged.dataset.id);
+  });
+  document.addEventListener('dragover', (e) => {
+    const over = e.target.closest?.('.sort-item[data-id]');
+    if (!dragged || !over || over.parentElement !== dragged.parentElement) return;
+    e.preventDefault();
+    if (over === dragged) return;
+    const r = over.getBoundingClientRect();
+    over.parentElement.insertBefore(dragged, e.clientY > r.top + r.height / 2 ? over.nextElementSibling : over);
+  });
+  document.addEventListener('drop', (e) => { if (dragged) e.preventDefault(); });
+  document.addEventListener('dragend', () => {
+    if (!dragged) return;
+    const list = dragged.parentElement;
+    dragged.classList.remove('dragging');
+    dragged = null;
+    commit(list);
+  });
+
+  render();
+  if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
+})();
+</script>
+</body>
+</html>

@@ -231,11 +231,11 @@
       out.push({ ...r, plain, count: 1, total: r.Amount, oldest: r.TimestampUnixSeconds });
     }
     const tones = { purchase: 'tone-accent', sell: 'tone-success', credits_add: 'tone-gold', credits_subtract: 'tone-danger' };
-    return html`<div class="sp-table-wrap"><table class="sp-table compact"><thead><tr><th>When</th><th>Entry</th><th class="r">Credits</th><th class="r d-none d-md-table-cell">Balance after</th><th class="r">Where</th></tr></thead><tbody>
+    return html`<div class="sp-table-wrap fit"><table class="sp-table compact"><thead><tr><th>When</th><th>Entry</th><th class="r">Credits</th><th class="r opt-1">Balance after</th><th class="r">Where</th></tr></thead><tbody>
       ${out.map((r) => html`<tr><td class="fs-7 text-muted2" title="${fmt.date(r.TimestampUnixSeconds * 1000)}">${fmt.ago(r.TimestampUnixSeconds * 1000)}</td>
         <td><span class="sp-pill ${tones[r.Action]}">${X.actionLabel[r.Action]}${r.count > 1 ? ` ×${r.count}` : ''}</span> ${r.ItemDisplayName ? html`<span class="ms-1">${r.ItemDisplayName}</span>` : ''}</td>
         <td class="r sp-display fs-6 ${X.delta(r) > 0 ? 'text-success2' : 'text-danger2'}">${X.delta(r) > 0 ? '+' : '−'}${fmt.num(r.count > 1 ? r.total : r.Amount)}</td>
-        <td class="r d-none d-md-table-cell text-muted2">${fmt.num(r.BalanceAfter)}</td>
+        <td class="r opt-1 text-muted2">${fmt.num(r.BalanceAfter)}</td>
         <td class="r">${r.PlayerId === -1 ? html`<span class="sp-badge tone-info">Web</span>` : html`<span class="sp-badge tone-muted">In game</span>`}</td></tr>`)}
       </tbody></table></div>
       <div class="fs-8 text-faint mt-2">From <span class="mono">shopcore_ledger</span>, which ShopCore keeps in the database with <span class="mono">Ledger.Persistence</span> on MySQL.

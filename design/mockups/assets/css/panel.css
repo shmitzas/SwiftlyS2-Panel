@@ -67,6 +67,9 @@
   --sp-radius-lg: 10px;
   --sp-radius-sm: calc(var(--sp-radius) * .67);
   --sp-radius-pill: calc(var(--sp-radius) * 99);
+  /* Room the top bar takes, which sticky sidebars and toasts clear; a side-bar layout lowers it (section 12). */
+  --sp-sticky-top: 76px;
+  --sp-sidenav-w: 248px;
   /* CS2 sets its UI text in Noto Sans; Barlow Semi Condensed stands in for Stratum2, which is not redistributable. */
   --sp-font-body: "Noto Sans Variable", "Noto Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --sp-font-display: "Barlow Semi Condensed", "Noto Sans Variable", "Arial Narrow", system-ui, sans-serif;
@@ -452,6 +455,9 @@ h1, h2 { text-transform: uppercase; }
 .min-w-0 { min-width: 0; }
 .text-truncate-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .sp-container { width: 100%; max-width: 1360px; margin: 0 auto; padding: 0 1.25rem; }
+/* The layout's full-width option (html.sp-fluid): no cap, and a wider gutter once the window is wide. */
+.sp-fluid .sp-container { max-width: none; }
+@media (min-width: 1600px) { .sp-fluid .sp-container { padding: 0 2rem; } }
 .sp-cols { display: grid; gap: .5rem; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); }
 
 /* =========================================================================================
@@ -471,7 +477,7 @@ h1, h2 { text-transform: uppercase; }
 .sp-brand { display: flex; align-items: center; gap: .65rem; color: var(--sp-text); padding-right: .5rem; }
 .sp-brand:hover { color: var(--sp-text); }
 .sp-brand-mark { width: 30px; height: 30px; flex-shrink: 0; }
-.sp-brand-name { font: 700 1.3rem/1 var(--sp-font-display); letter-spacing: .03em; text-transform: uppercase; }
+.sp-brand-name { display: block; font: 700 1.3rem/1 var(--sp-font-display); letter-spacing: .03em; text-transform: uppercase; }
 .sp-brand-sub { font: 600 .66rem/1 var(--sp-font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-accent); }
 .sp-nav { display: flex; align-items: center; gap: .15rem; margin: 0; padding: 0; list-style: none; }
 /* CS2 marks the open menu by colouring its label; the soft plate keeps it findable at a glance. */
@@ -511,6 +517,45 @@ h1, h2 { text-transform: uppercase; }
 }
 .sp-footer a { color: var(--sp-text-muted); }
 .sp-footer a:hover { color: var(--sp-text); }
+
+/* Side bar: the same entries down the left or right edge, chosen on Admin -> Layout. Hidden until section 12 turns it on. */
+.sp-sidenav {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  z-index: 1030;
+  display: none;
+  flex-direction: column;
+  gap: 1rem;
+  width: var(--sp-sidenav-w);
+  padding: 1.1rem .85rem 1rem;
+  background: color-mix(in srgb, var(--sp-surface) 86%, transparent);
+  backdrop-filter: blur(12px) saturate(1.15);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15);
+}
+.sp-sidenav .sp-brand { padding: .15rem .4rem .3rem; }
+.sp-sidenav .sp-search { width: 100%; }
+.sp-sidenav-nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.sp-sidenav-list { display: flex; flex-direction: column; gap: .15rem; margin: 0; padding: 0; list-style: none; }
+.sp-sidenav-link {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .6rem .75rem;
+  border-radius: var(--sp-radius);
+  color: var(--sp-text-muted);
+  font: 600 1rem/1.15 var(--sp-font-display);
+  letter-spacing: .01em;
+  transition: background-color var(--sp-fast), color var(--sp-fast);
+}
+.sp-sidenav-link .bi { font-size: 1.05rem; color: var(--sp-text-faint); transition: color var(--sp-fast); }
+.sp-sidenav-link:hover { background: var(--sp-hover-wash); color: var(--sp-text); }
+.sp-sidenav-link:hover .bi { color: var(--sp-text); }
+.sp-sidenav-link.active { background: var(--sp-accent-soft); color: var(--sp-accent-strong); }
+.sp-sidenav-link.active .bi { color: var(--sp-accent); }
+.sp-sidenav-sep { height: 1px; margin: .45rem .75rem; background: var(--sp-edge-soft); }
+.sp-sidenav-foot { padding-top: .8rem; border-top: 1px solid var(--sp-edge-soft); }
+.sp-sidenav-foot .sp-user { width: 100%; }
 
 /* =========================================================================================
    5. Shell (CustomHUD's locker) - a dark glass panel over the slate page, like CS2's menu content area
@@ -576,7 +621,7 @@ h1, h2 { text-transform: uppercase; }
 
 /* Locker: sidebar + page. Entries read like CS2's sidebar: plain labels until hovered or chosen. */
 .sp-locker { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 1.25rem; align-items: start; }
-.sp-side { display: flex; flex-direction: column; gap: .2rem; position: sticky; top: 76px; }
+.sp-side { display: flex; flex-direction: column; gap: .2rem; position: sticky; top: var(--sp-sticky-top); }
 .sp-side-item {
   display: flex;
   align-items: center;
@@ -737,6 +782,10 @@ h1, h2 { text-transform: uppercase; }
 .sp-table .c { text-align: center; }
 .sp-table.compact tbody td { padding: .38rem .6rem; }
 .sp-table-wrap { overflow-x: auto; margin: -3px 0; }
+/* sq-1..3 are set cumulatively by SP.fit on a .fit wrap, one tier at a time, until its table fits the card. */
+.sp-table-wrap.sq-1 .opt-1, .sp-table-wrap.sq-2 .opt-2, .sp-table-wrap.sq-3 .opt-3 { display: none; }
+.sp-table-wrap.sq-1 .sp-table :is(thead th, tbody td) { padding-left: .5rem; padding-right: .5rem; }
+.sp-table-wrap.sq-1 .sp-table tbody td.opt-1:first-child + td { border-radius: var(--sp-radius) 0 0 var(--sp-radius); }
 
 .sp-rows { display: flex; flex-direction: column; gap: 3px; }
 .sp-row {
@@ -1135,7 +1184,7 @@ a.sp-player:hover { color: var(--sp-accent-strong); }
 }
 .sp-callout > .bi { color: var(--hue); font-size: 1.1rem; line-height: 1.3; }
 .sp-callout strong { color: var(--hue); }
-.sp-toast-stack { position: fixed; top: 76px; right: 1rem; z-index: 1090; display: flex; flex-direction: column; gap: .5rem; pointer-events: none; }
+.sp-toast-stack { position: fixed; top: var(--sp-sticky-top); right: 1rem; z-index: 1090; display: flex; flex-direction: column; gap: .5rem; pointer-events: none; }
 .sp-toast {
   min-width: 260px;
   max-width: 380px;
@@ -1174,8 +1223,10 @@ a.sp-player:hover { color: var(--sp-accent-strong); }
   bottom: .75rem;
   z-index: 1100;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: .5rem;
+  max-width: calc(100% - 1.5rem);
   padding: .4rem .5rem;
   background: rgba(8, 9, 10, .92);
   border: 1px dashed #ff00aa;
@@ -1210,6 +1261,25 @@ a.sp-player:hover { color: var(--sp-accent-strong); }
 /* =========================================================================================
    12. Responsive and motion
    ========================================================================================= */
+/* Side-bar layouts (html.sp-nav-left / -right, set by panel.js from the saved layout). */
+@media (min-width: 992px) {
+  .sp-nav-left, .sp-nav-right { --sp-sticky-top: 16px; }
+  .sp-nav-left body { padding-left: var(--sp-sidenav-w); }
+  .sp-nav-right body { padding-right: var(--sp-sidenav-w); }
+  .sp-nav-left .sp-topbar, .sp-nav-right .sp-topbar { display: none; }
+  .sp-nav-left .sp-sidenav, .sp-nav-right .sp-sidenav { display: flex; }
+  .sp-nav-left .sp-sidenav { left: 0; border-right: 1px solid var(--sp-edge-soft); }
+  .sp-nav-right .sp-sidenav { right: 0; border-left: 1px solid var(--sp-edge-soft); }
+  .sp-nav-right .sp-toast-stack { right: calc(var(--sp-sidenav-w) + 1rem); }
+  .sp-nav-left .mock-bar { left: auto; right: .75rem; }
+}
+/* Beside a side bar, a locker's own sidebar leaves too little room until 1366 px: stack it, as on tablets below. */
+@media (min-width: 992px) and (max-width: 1365.98px) {
+  :is(.sp-nav-left, .sp-nav-right) .sp-locker { grid-template-columns: minmax(0, 1fr); }
+  :is(.sp-nav-left, .sp-nav-right) .sp-side { position: static; flex-direction: row; overflow-x: auto; gap: .3rem; padding-bottom: .2rem; }
+  :is(.sp-nav-left, .sp-nav-right) .sp-side-item { width: auto; flex-shrink: 0; background: color-mix(in srgb, var(--sp-text) 4%, transparent); }
+  :is(.sp-nav-left, .sp-nav-right) :is(.sp-side-sep, .sp-side-label) { display: none; }
+}
 /* Seven nav entries (staff with every module on) need the full container width. */
 @media (max-width: 1365.98px) {
   .sp-topbar .sp-search { display: none; }
@@ -1227,7 +1297,7 @@ a.sp-player:hover { color: var(--sp-accent-strong); }
 }
 @media (max-width: 575.98px) {
   .sp-podium { grid-template-columns: 1fr; }
-  .sp-brand-sub, .sp-brand-name { display: none; }
+  .sp-brand > span { display: none; }
   .sp-topbar-inner { gap: .5rem; }
   .sp-nav { gap: 0; }
   .sp-navlink { padding: 0 .4rem; }

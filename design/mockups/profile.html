@@ -75,7 +75,9 @@
     ['record', `Punishments`, has('admins'), record.length],
     ['sessions', 'Sessions', has('admins') && staff, sessions.length],
   ].filter((t) => t[2]);
-  let tab = location.hash.slice(1).split('?')[0] || 'overview';
+  const tabOrder = SP.order('profile.tabs', tabs.map((t) => t[0]));
+  tabs.sort((a, b) => tabOrder.indexOf(a[0]) - tabOrder.indexOf(b[0]));
+  let tab = location.hash.slice(1).split('?')[0] || tabs[0]?.[0];
   if (!tabs.some((t) => t[0] === tab)) tab = tabs[0]?.[0];
 
   const vipGroup = vip && D.vipcore.groups.find((g) => g.name === vip.group);
@@ -124,7 +126,8 @@
     const combos = D.ranks.ranks_combos.filter((c) => c.steam_id === sid).sort((a, b) => b.count - a.count);
     const history = D.ranks.ranks_players_history.filter((r) => r.steam_id === sid).sort((a, b) => b.period - a.period);
     return html`
-      <div class="row g-3 mb-3">
+      <div class="row g-4" data-panels="profile.overview" data-bp="lg">
+      <div data-panel="summary" data-size="full"><div class="row g-3">
         <div class="col-lg-4"><div class="sp-panel wash h-100">
           <span class="sp-stat-label">Rank · this season</span>
           <div class="d-flex align-items-center gap-3 my-2">${R.rating(season.points, 'lg')}</div>
@@ -143,21 +146,20 @@
           ${nextPres ? html`<div class="d-flex justify-content-between fs-8 mb-1"><span>Next level: ${fmt.num(alltime.points)}/${fmt.num(nextPres.MinimumPoints)}</span></div>
             <div class="sp-meter tone-legend" style="--v:${(alltime.points / nextPres.MinimumPoints) * 100}%"><i></i></div>` : html`<div class="fs-8">You have reached the highest prestige.</div>`}
         </div></div>
-      </div>
-      <h2 class="sp-section-title">Statistics <small>all time · core's own figures</small></h2>
-      <div class="stat-grid mb-4">
+      </div></div>
+      <div data-panel="stats" data-size="full"><h2 class="sp-section-title">Statistics <small>all time · core's own figures</small></h2>
+      <div class="stat-grid">
         ${stat('Kills', fmt.num(s.kills))}${stat('Deaths', fmt.num(s.deaths))}${stat('K/D', fmt.kd(s.kills, s.deaths).toFixed(2))}
         ${stat('Assists', fmt.num(s.assists))}${stat('Headshots', fmt.num(s.headshots), `${fmt.pct(s.headshots, s.kills)}% of kills`)}
         ${stat('Accuracy', `${fmt.pct(s.hits, s.hits + s.misses)}%`, `${fmt.num(s.hits)} hit, ${fmt.num(s.misses)} missed`)}
         ${stat('Rounds', fmt.num(s.round_wins), `won · ${fmt.num(s.round_losses)} lost`)}${stat('Matches', fmt.num(s.match_wins), `won · ${fmt.num(s.match_losses)} lost`)}
         ${stat('Bombs', fmt.num(s.bombs_planted), `planted · ${fmt.num(s.bombs_defused)} defused`)}${stat('Playtime', fmt.playtime(s.playtime))}
-      </div>
-      <div class="row g-3">
-        <div class="col-lg-7"><h2 class="sp-section-title">Seasons <small>ranks_players_history</small></h2>
+      </div></div>
+      <div data-panel="seasons" data-size="wide"><h2 class="sp-section-title">Seasons <small>ranks_players_history</small></h2>
           <div class="sp-table-wrap"><table class="sp-table compact"><thead><tr><th>Season</th><th>XP</th><th class="r">Kills</th><th class="r">K/D</th><th class="r">Playtime</th></tr></thead><tbody>
             ${[season, ...history].map((r) => html`<tr><td class="sp-display fs-7">${R.periodLabel(r.period)}${r.period === R.current ? html` <span class="sp-pill tone-accent ms-1">Live</span>` : ''}</td><td>${R.rating(r.points, 'sm')}</td>
               <td class="r">${fmt.num(r.kills)}</td><td class="r">${fmt.kd(r.kills, r.deaths).toFixed(2)}</td><td class="r mono fs-8">${fmt.playtime(r.playtime)}</td></tr>`)}</tbody></table></div></div>
-        <div class="col-lg-5"><h2 class="sp-section-title">Combos <small>Ranks_CustomCombos</small></h2>
+      <div data-panel="combos" data-size="narrow"><h2 class="sp-section-title">Combos <small>Ranks_CustomCombos</small></h2>
           <div class="sp-rows">${combos.length ? combos.map((c) => html`<div class="sp-row"><i class="bi bi-stars text-gold"></i><span class="flex-grow-1">${D.ranks.comboNames[c.combo_key] ?? c.combo_key}</span>
             <span class="sp-display fs-5 num">${c.count}</span></div>`) : html`<div class="sp-panel empty">No combos landed yet.</div>`}</div></div>
       </div>`;
@@ -173,12 +175,12 @@
     const weaponImg = (w) => D.catalog.weapons.find((x) => x.classname === w)?.image;
     return html`<div class="row g-4">
       <div class="col-xl-8"><h2 class="sp-section-title">Weapon stats <small>Ranks_WeaponStats · all time</small></h2>
-        <div class="sp-table-wrap"><table class="sp-table"><thead><tr><th>Weapon</th><th class="r">Kills</th><th class="r">HS</th><th class="r">Accuracy</th><th class="r d-none d-md-table-cell">Damage</th><th class="r d-none d-md-table-cell">Shots</th></tr></thead>
+        <div class="sp-table-wrap fit"><table class="sp-table"><thead><tr><th>Weapon</th><th class="r">Kills</th><th class="r">HS</th><th class="r">Accuracy</th><th class="r opt-1">Damage</th><th class="r opt-1">Shots</th></tr></thead>
           <tbody>${rows.map((w) => html`<tr><td><div class="d-flex align-items-center gap-3">${weaponImg(w.weapon) ? html`<img class="w-icon" src="${weaponImg(w.weapon)}" alt="">` : html`<span class="w-icon d-inline-grid text-center text-faint"><i class="bi bi-${w.weapon.includes('knife') ? 'scissors' : 'fire'} fs-4"></i></span>`}
               <span class="sp-display fs-6">${weaponName(w.weapon)}</span></div></td>
             <td class="r sp-display fs-6">${fmt.num(w.kills)}</td><td class="r">${fmt.pct(w.headshots, w.kills)}%</td>
             <td class="r">${w.hits + w.misses ? `${fmt.pct(w.hits, w.hits + w.misses)}%` : html`<span class="text-faint">—</span>`}</td>
-            <td class="r d-none d-md-table-cell text-muted2">${fmt.num(w.damage)}</td><td class="r d-none d-md-table-cell text-muted2">${fmt.num(w.shots)}</td></tr>`)}</tbody></table></div></div>
+            <td class="r opt-1 text-muted2">${fmt.num(w.damage)}</td><td class="r opt-1 text-muted2">${fmt.num(w.shots)}</td></tr>`)}</tbody></table></div></div>
       <div class="col-xl-4"><h2 class="sp-section-title">Overall hit stats <small>${fmt.num(total)} hits</small></h2>
         <div class="sp-panel"><div class="row g-3 align-items-center">
           <div class="col-5 sp-hitbox"><svg viewBox="0 0 120 192" role="img" aria-label="Hit distribution">

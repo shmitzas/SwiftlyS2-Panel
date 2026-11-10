@@ -19,7 +19,7 @@
   const part = (v) => (v instanceof Raw ? v.s : Array.isArray(v) ? v.map(part).join('') : v == null || v === false ? '' : SP.esc(v));
   /** Interpolations are escaped unless they are themselves html`` / SP.raw(): player names are attacker-controlled. */
   SP.html = (strings, ...vals) => new Raw(strings.reduce((out, s, i) => out + s + (i < vals.length ? part(vals[i]) : ''), ''));
-  SP.mount = (el, content) => { const node = typeof el === 'string' ? document.querySelector(el) : el; if (node) node.innerHTML = part(content); return node; };
+  SP.mount = (el, content) => { const node = typeof el === 'string' ? document.querySelector(el) : el; if (node) { node.innerHTML = part(content); SP.arrange(node); SP.fit(node); } return node; };
   SP.ready = (fn) => (document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', fn) : fn());
   SP.param = (name) => new URLSearchParams(location.search).get(name);
   SP.store = {
@@ -395,7 +395,85 @@
   };
   SP.theme.apply(SP.theme.current().tokens);
 
-  /* ---------------------------------------------------------------- layout */
+  /* ---------------------------------------------------------------- site layout (set by web admins on Admin -> Layout) */
+  // Panel groups an admin can reorder: [id, label, size, module]. Size feeds the pairing rule in SP.spans.
+  SP.arrangeable = {
+    landing: { page: 'Landing', href: 'landing.html', panels: [
+      ['hero', 'Hero', 'wide'], ['servers', 'Live servers', 'narrow', 'servers'], ['top', 'Top players', 'wide', 'ranks'],
+      ['punishments', 'Recent punishments', 'narrow', 'admins'], ['skins', 'Skin changer', 'full', 'weaponskins'],
+      ['shop', 'Shop', 'full', 'shop'], ['vip', 'VIP tiers', 'full', 'vipcore']] },
+    'profile.tabs': { page: 'Player profile', group: 'Tabs', note: 'the first one opens by default', href: 'profile.html', panels: [
+      ['overview', 'Overview', null, 'ranks'], ['weapons', 'Weapons', null, 'ranks'], ['loadout', 'Loadout', null, 'weaponskins'],
+      ['inventory', 'Inventory', null, 'shop'], ['record', 'Punishments', null, 'admins'], ['sessions', 'Sessions · staff only', null, 'admins']] },
+    'profile.overview': { page: 'Player profile', group: 'Overview tab', href: 'profile.html#overview', panels: [
+      ['summary', 'Rank, Elo and prestige', 'full'], ['stats', 'Statistics', 'full'], ['seasons', 'Seasons', 'wide'], ['combos', 'Combos', 'narrow']] },
+  };
+  SP.layoutCfg = {
+    defaults: { nav: 'top', width: 'fixed', order: {} },
+    get() {
+      const s = SP.store.get('sp-layout', {});
+      return {
+        nav: ['top', 'left', 'right'].includes(s.nav) ? s.nav : 'top',
+        width: s.width === 'fluid' ? 'fluid' : 'fixed',
+        order: s.order && typeof s.order === 'object' ? s.order : {},
+      };
+    },
+    save(cfg) { SP.store.set('sp-layout', cfg); },
+  };
+  let layoutDraft = null; // the layout editor's unsaved copy, previewed on that page only
+  const layoutNow = () => layoutDraft ?? SP.layoutCfg.get();
+  /** Ids in the saved order; ids the admin has not placed yet (a module enabled later) follow in their default order. */
+  SP.order = (group, ids) => {
+    const placed = (layoutNow().order[group] ?? []).filter((id) => ids.includes(id));
+    return [...placed, ...ids.filter((id) => !placed.includes(id))];
+  };
+  /** The pairing rule: a wide panel next to a narrow one share a row (7 + 5 of 12 columns); anything else spans the row. */
+  SP.spans = (sizes) => {
+    const out = [];
+    for (let i = 0; i < sizes.length; i++) {
+      const [a, b] = [sizes[i], sizes[i + 1]];
+      if ((a === 'wide' && b === 'narrow') || (a === 'narrow' && b === 'wide')) { out.push(a === 'wide' ? 7 : 5, b === 'wide' ? 7 : 5); i++; } else out.push(12);
+    }
+    return out;
+  };
+  /** Puts every [data-panels] group's [data-panel] children in the saved order and gives each its column span. */
+  SP.arrange = (root = document) => {
+    root.querySelectorAll('[data-panels]').forEach((box) => {
+      const kids = [...box.children].filter((el) => el.dataset.panel);
+      const byId = new Map(kids.map((el) => [el.dataset.panel, el]));
+      const ordered = SP.order(box.dataset.panels, kids.map((el) => el.dataset.panel)).map((id) => byId.get(id));
+      const spans = SP.spans(ordered.map((el) => el.dataset.size));
+      ordered.forEach((el, i) => {
+        el.className = el.className.replace(/(^|\s)col-\S+/g, '').trim();
+        el.classList.add('col-12');
+        if (spans[i] < 12) el.classList.add(`col-${box.dataset.bp || 'xl'}-${spans[i]}`);
+        box.append(el);
+      });
+    });
+  };
+  /** A .sp-table-wrap.fit hides its table's .opt-1, then .opt-2, then .opt-3 columns, only as far as it must to fit its card. */
+  SP.fit = (root = document) => {
+    const wraps = new Set(root.querySelectorAll('.sp-table-wrap.fit'));
+    const own = root.closest?.('.sp-table-wrap.fit');
+    if (own) wraps.add(own);
+    wraps.forEach((w) => {
+      w.classList.remove('sq-1', 'sq-2', 'sq-3');
+      for (let i = 1; i <= 3 && w.scrollWidth > w.clientWidth; i++) w.classList.add(`sq-${i}`);
+    });
+  };
+  let fitFrame = 0;
+  addEventListener('resize', () => { cancelAnimationFrame(fitFrame); fitFrame = requestAnimationFrame(() => SP.fit()); });
+  document.fonts?.ready.then(() => SP.fit());
+  const layoutClass = () => {
+    const { nav, width } = layoutNow();
+    const root = document.documentElement.classList;
+    root.toggle('sp-nav-left', nav === 'left');
+    root.toggle('sp-nav-right', nav === 'right');
+    root.toggle('sp-fluid', width === 'fluid');
+  };
+  layoutClass();
+
+  /* ---------------------------------------------------------------- page chrome: top bar, side bar, footer */
   SP.logo = SP.raw(`<svg class="sp-brand-mark" viewBox="0 0 32 32" aria-hidden="true">
       <rect x="1" y="1" width="30" height="30" rx="9" fill="var(--sp-accent)" opacity=".16"/>
       <circle cx="16" cy="16" r="7" fill="none" stroke="var(--sp-accent)" stroke-width="2.4"/>
@@ -411,39 +489,59 @@
     { id: 'skins', module: 'weaponskins', href: 'skins.html', icon: 'crosshair', label: 'Skins', auth: true },
   ];
 
-  function topbar(active) {
-    const items = SP.nav.filter((n) => !n.module || SP.modules.enabled(n.module)).filter((n) => !n.auth || SP.viewer.steamId);
+  /** Visible entries in the admin's order. The staff-only Admin entry is not among them: it always comes last. */
+  SP.navItems = () => {
+    const visible = SP.nav.filter((n) => !n.module || SP.modules.enabled(n.module)).filter((n) => !n.auth || SP.viewer.steamId);
+    const byId = new Map(visible.map((n) => [n.id, n]));
+    return SP.order('nav', visible.map((n) => n.id)).map((id) => byId.get(id));
+  };
+  const navLinks = (active, cls, staffGap = '') => SP.html`
+    ${SP.navItems().map((n) => SP.html`<li><a class="${cls} ${n.id === active ? 'active' : ''}" href="${n.href}"><i class="bi bi-${n.icon}"></i><span class="label">${n.label}</span></a></li>`)}
+    ${SP.isStaff() ? SP.html`${staffGap}<li><a class="${cls} ${active === 'admin' ? 'active' : ''}" href="admin.html"><i class="bi bi-shield-lock-fill"></i><span class="label">Admin</span></a></li>` : ''}`;
+  const search = () => SP.html`<form class="sp-search" role="search" action="profile.html"><i class="bi bi-search"></i><input class="form-control" name="q" placeholder="Player name or SteamID" aria-label="Search players"></form>`;
+  const arrangeHere = { 'landing.html': 'landing', 'profile.html': 'profile' }[location.pathname.split('/').pop()];
+
+  /** placement: 'top' opens down from the top bar; 'left' / 'right' open up from the foot of the side bar. */
+  function userMenu(placement) {
     const v = SP.viewer;
-    const roles = SP.rolesFor(v.steamId).sort((a, b) => b.weight - a.weight);
-    const top = roles[0];
-    const user = v.steamId
-      ? SP.html`<div class="dropdown">
-          <a class="sp-user" href="#" data-bs-toggle="dropdown" aria-expanded="false">
-            ${SP.avatar(SP.playerName(v.steamId), v.steamId)}
-            <span class="d-none d-md-block text-start"><span class="sp-user-name d-block">${SP.playerName(v.steamId)}</span>
-              <span class="sp-user-role" style="color:${top?.color ?? 'inherit'}">${top?.name ?? ''}</span></span>
-            <i class="bi bi-chevron-down text-faint small"></i></a>
-          <ul class="dropdown-menu dropdown-menu-end">
-            <li><h6 class="dropdown-header">Signed in through Steam</h6></li>
-            <li><a class="dropdown-item" href="profile.html?id=${v.steamId}"><i class="bi bi-person-vcard me-2"></i>My profile</a></li>
-            ${SP.modules.enabled('weaponskins') ? SP.html`<li><a class="dropdown-item" href="skins.html"><i class="bi bi-crosshair me-2"></i>My skins</a></li>` : ''}
-            ${SP.modules.enabled('shop') ? SP.html`<li><a class="dropdown-item d-flex align-items-center" href="shop.html#inventory"><i class="bi bi-bag-fill me-2"></i>My inventory
-              <span class="ms-auto ps-3 text-gold sp-display"><i class="bi bi-coin me-1"></i>${SP.fmt.num(SP.shop.credits(v.steamId))}</span></a></li>` : ''}
-            ${SP.isStaff() ? SP.html`<li><a class="dropdown-item" href="admin.html"><i class="bi bi-shield-lock-fill me-2"></i>Admin area</a></li>` : ''}
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="#" data-viewer="guest"><i class="bi bi-box-arrow-right me-2"></i>Sign out</a></li>
-          </ul></div>`
-      : SP.html`<a class="btn btn-steam btn-sm" href="#" data-viewer="player"><i class="bi bi-steam me-1"></i> Sign in through Steam</a>`;
+    if (!v.steamId) return SP.html`<a class="btn btn-steam btn-sm ${placement === 'top' ? '' : 'w-100'}" href="#" data-viewer="player"><i class="bi bi-steam me-1"></i> Sign in through Steam</a>`;
+    const top = SP.rolesFor(v.steamId).sort((a, b) => b.weight - a.weight)[0];
+    return SP.html`<div class="${placement === 'top' ? 'dropdown' : 'dropup'}">
+      <a class="sp-user" href="#" data-bs-toggle="dropdown" aria-expanded="false">
+        ${SP.avatar(SP.playerName(v.steamId), v.steamId)}
+        <span class="d-none d-md-block text-start min-w-0"><span class="sp-user-name d-block text-truncate">${SP.playerName(v.steamId)}</span>
+          <span class="sp-user-role" style="color:${top?.color ?? 'inherit'}">${top?.name ?? ''}</span></span>
+        <i class="bi bi-chevron-${placement === 'top' ? 'down' : 'up'} text-faint small ms-auto"></i></a>
+      <ul class="dropdown-menu ${placement === 'left' ? '' : 'dropdown-menu-end'}">
+        <li><h6 class="dropdown-header">Signed in through Steam</h6></li>
+        <li><a class="dropdown-item" href="profile.html?id=${v.steamId}"><i class="bi bi-person-vcard me-2"></i>My profile</a></li>
+        ${SP.modules.enabled('weaponskins') ? SP.html`<li><a class="dropdown-item" href="skins.html"><i class="bi bi-crosshair me-2"></i>My skins</a></li>` : ''}
+        ${SP.modules.enabled('shop') ? SP.html`<li><a class="dropdown-item d-flex align-items-center" href="shop.html#inventory"><i class="bi bi-bag-fill me-2"></i>My inventory
+          <span class="ms-auto ps-3 text-gold sp-display"><i class="bi bi-coin me-1"></i>${SP.fmt.num(SP.shop.credits(v.steamId))}</span></a></li>` : ''}
+        ${SP.isStaff() ? SP.html`<li><a class="dropdown-item" href="admin.html"><i class="bi bi-shield-lock-fill me-2"></i>Admin area</a></li>` : ''}
+        ${arrangeHere && SP.can('panel.layout') ? SP.html`<li><a class="dropdown-item" href="admin-layout.html#${arrangeHere}"><i class="bi bi-layout-sidebar-inset me-2"></i>Arrange this page</a></li>` : ''}
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="#" data-viewer="guest"><i class="bi bi-box-arrow-right me-2"></i>Sign out</a></li>
+      </ul></div>`;
+  }
+
+  const brand = () => SP.html`<a class="sp-brand" href="landing.html">${SP.logo}<span class="lh-1"><span class="sp-brand-name">${D.meta.community}</span><span class="sp-brand-sub">CS2 community</span></span></a>`;
+
+  function topbar(active) {
     return SP.html`<header class="sp-topbar"><div class="sp-container sp-topbar-inner">
-      <a class="sp-brand" href="landing.html">${SP.logo}<span class="lh-1"><span class="sp-brand-name d-block">${D.meta.community}</span><span class="sp-brand-sub">CS2 community</span></span></a>
-      <nav aria-label="Main"><ul class="sp-nav">
-        ${items.map((n) => SP.html`<li><a class="sp-navlink ${n.id === active ? 'active' : ''}" href="${n.href}"><i class="bi bi-${n.icon}"></i><span class="label">${n.label}</span></a></li>`)}
-        ${SP.isStaff() ? SP.html`<li><a class="sp-navlink ${active === 'admin' ? 'active' : ''}" href="admin.html"><i class="bi bi-shield-lock-fill"></i><span class="label">Admin</span></a></li>` : ''}
-      </ul></nav>
-      <div class="ms-auto d-flex align-items-center gap-2">
-        <form class="sp-search" role="search" action="profile.html"><i class="bi bi-search"></i><input class="form-control" name="q" placeholder="Player name or SteamID" aria-label="Search players"></form>
-        ${user}
-      </div></div></header>`;
+      ${brand()}
+      <nav aria-label="Main"><ul class="sp-nav">${navLinks(active, 'sp-navlink')}</ul></nav>
+      <div class="ms-auto d-flex align-items-center gap-2">${search()}${userMenu('top')}</div></div></header>`;
+  }
+
+  /** Rendered beside the top bar on every page; CSS shows one of them (the side bar folds into the top bar below 992 px). */
+  function sidenav(active) {
+    return SP.html`<aside class="sp-sidenav">
+      ${brand()}
+      ${search()}
+      <nav class="sp-sidenav-nav" aria-label="Main"><ul class="sp-sidenav-list">${navLinks(active, 'sp-sidenav-link', SP.raw('<li class="sp-sidenav-sep" role="separator"></li>'))}</ul></nav>
+      <div class="sp-sidenav-foot">${userMenu(layoutNow().nav === 'right' ? 'right' : 'left')}</div>
+    </aside>`;
   }
 
   function footer() {
@@ -463,6 +561,10 @@
         <select data-mock="viewer">${Object.entries(SP.viewers).map(([id, v]) => SP.html`<option value="${id}" ${id === SP.viewerId ? 'selected' : ''}>${v.label}</option>`)}</select></label>
       <label class="d-flex align-items-center gap-1">Theme
         <select data-mock="theme">${Object.entries(SP.theme.presets).map(([id, p]) => SP.html`<option value="${id}" ${id === t.preset ? 'selected' : ''}>${p.label}</option>`)}${t.preset === 'custom' ? SP.html`<option value="custom" selected>Custom</option>` : ''}</select></label>
+      <label class="d-flex align-items-center gap-1">Nav
+        <select data-mock="nav">${[['top', 'Top bar'], ['left', 'Side · left'], ['right', 'Side · right']].map(([id, label]) => SP.html`<option value="${id}" ${id === SP.layoutCfg.get().nav ? 'selected' : ''}>${label}</option>`)}</select></label>
+      <label class="d-flex align-items-center gap-1">Width
+        <select data-mock="width">${[['fixed', 'Centred'], ['fluid', 'Full width']].map(([id, label]) => SP.html`<option value="${id}" ${id === SP.layoutCfg.get().width ? 'selected' : ''}>${label}</option>`)}</select></label>
       <a href="index.html">All pages</a>
     </div>`;
   }
@@ -487,6 +589,7 @@
       ${item('modules', 'admin.html#modules', 'puzzle-fill', 'Modules', 'panel.modules')}
       ${item('roles', 'admin-roles.html', 'person-badge', 'Roles', 'panel.roles')}
       ${item('theme', 'admin-theme.html', 'palette-fill', 'Theme', 'panel.theme')}
+      ${item('layout', 'admin-layout.html', 'layout-sidebar-inset', 'Layout', 'panel.layout')}
       ${item('settings', 'admin.html#settings', 'gear-fill', 'Settings', 'panel.settings')}
       ${item('audit', 'admin.html#audit', 'journal-text', 'Audit log', 'panel.audit')}
       <div class="sp-side-label">Modules</div>
@@ -506,20 +609,33 @@
   };
 
   SP.layout = (active) => {
+    SP.activeNav = active;
     SP.ready(() => {
       const top = document.getElementById('sp-top');
       const foot = document.getElementById('sp-foot');
-      if (top) top.outerHTML = part(topbar(active));
+      if (top) top.outerHTML = part(SP.html`${topbar(active)}${sidenav(active)}`);
       if (foot) foot.outerHTML = part(footer());
       document.body.insertAdjacentHTML('beforeend', part(mockBar()));
+      SP.arrange();
+      SP.fit();
       SP.tips();
     });
+  };
+  /** The layout editor's live preview: this page only, until the draft is saved. */
+  SP.previewLayout = (draft) => {
+    layoutDraft = draft;
+    layoutClass();
+    const fresh = document.createElement('template');
+    fresh.innerHTML = part(SP.html`${topbar(SP.activeNav)}${sidenav(SP.activeNav)}`);
+    document.querySelector('.sp-topbar')?.replaceWith(fresh.content.querySelector('.sp-topbar'));
+    document.querySelector('.sp-sidenav')?.replaceWith(fresh.content.querySelector('.sp-sidenav'));
   };
 
   document.addEventListener('change', (e) => {
     const t = e.target;
     if (t.dataset.mock === 'viewer') { SP.store.set('sp-viewer', t.value); location.reload(); }
     if (t.dataset.mock === 'theme' && SP.theme.presets[t.value]) { SP.theme.save({ preset: t.value, tokens: SP.theme.presets[t.value].tokens }); location.reload(); }
+    if (t.dataset.mock === 'nav' || t.dataset.mock === 'width') { SP.layoutCfg.save({ ...SP.layoutCfg.get(), [t.dataset.mock]: t.value }); location.reload(); }
   });
   document.addEventListener('click', (e) => {
     const v = e.target.closest('[data-viewer]');

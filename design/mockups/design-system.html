@@ -150,8 +150,8 @@
         <div>
           <h3 class="sp-section-title">Tiles <small>rarity glow from the foot · chosen · locked</small></h3>
           <div class="sp-grid mb-4" style="--min:160px" id="tiles"></div>
-          <h3 class="sp-section-title">Rows</h3>
-          <div class="sp-table-wrap"><table class="sp-table hover" id="rows"></table></div>
+          <h3 class="sp-section-title">Rows <small>in a <span class="mono">.fit</span> wrap, <span class="mono">.opt-1</span> → <span class="mono">-3</span> columns step aside only while the table would not fit</small></h3>
+          <div class="sp-table-wrap fit"><table class="sp-table hover" id="rows"></table></div>
         </div>
       </div>
     </div>
@@ -281,9 +281,9 @@
       <div class="sp-tile-type">${p.rarity}</div><div class="sp-tile-name">${p.name}</div><div class="sp-tile-value">#${p.paint}</div>
     </div>`));
   const leaders = SP.ranks.sorted(SP.ranks.current).slice(0, 4);
-  mount('#rows', html`<thead><tr><th>#</th><th>Player</th><th>XP</th><th class="r">K/D</th><th class="r">Playtime</th></tr></thead>
+  mount('#rows', html`<thead><tr><th>#</th><th>Player</th><th>XP</th><th class="r">K/D</th><th class="r opt-1">Playtime</th></tr></thead>
     <tbody>${leaders.map((r, i) => html`<tr class="${r.steam_id === SP.data.meta.featured ? 'chosen' : ''}"><td class="pos">${i + 1}</td><td>${SP.playerLink(r.steam_id, r.name)}</td>
-      <td>${SP.ranks.rating(r.points, 'sm')}</td><td class="r">${SP.fmt.kd(r.kills, r.deaths).toFixed(2)}</td><td class="r">${SP.fmt.playtime(r.playtime)}</td></tr>`)}</tbody>`);
+      <td>${SP.ranks.rating(r.points, 'sm')}</td><td class="r">${SP.fmt.kd(r.kills, r.deaths).toFixed(2)}</td><td class="r opt-1">${SP.fmt.playtime(r.playtime)}</td></tr>`)}</tbody>`);
 
   mount('#ratings', [148, 5210, 12310, 17880, 21045, 27500, 31240].map((p) => SP.ranks.rating(p)));
   mount('#rating-xl', SP.ranks.rating(12310, 'xl'));

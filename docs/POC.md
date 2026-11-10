@@ -23,7 +23,7 @@ database structure, and the contracts with each plugin's tables. The design half
 7. [Database](#7-database)
 8. [Plugin contracts](#8-plugin-contracts)
 9. [Sign-in, roles and permissions](#9-sign-in-roles-and-permissions)
-10. [Theming](#10-theming)
+10. [Theming and layout](#10-theming-and-layout)
 11. [Design language](#11-design-language)
 12. [Pages](#12-pages)
 13. [Server status](#13-server-status)
@@ -107,7 +107,7 @@ What "any web hosting that accepts SFTP uploads" means in practice, and what eac
 
 > Bootstrap stays stock. A maintainer *may* compile a slimmer Bootstrap from Sass (only the
 > components used) and commit the CSS; theming never depends on it, because every colour reaches
-> Bootstrap through `--bs-*` variables at runtime (§10).
+> Bootstrap through `--bs-*` variables at runtime (§10.1).
 
 ---
 
@@ -151,7 +151,8 @@ Browser ──HTTPS──► Web host (PHP 8.3+)                              Ga
 | `Access\Permissions` | Wildcard matching identical to SwiftlyS2's |
 | `Access\Roles` | Roles, role links (auto-assignment), panel and game permission resolution |
 | `View\Engine` | Layouts, sections, partials, `e()` escaping, `Html` and `Form` helpers |
-| `Theme\Compiler` | Tokens → `theme-<hash>.css` (§10) |
+| `View\Layout` | The saved menu position and content width, and the order of menu entries and arrangeable panels (§10.2) |
+| `Theme\Compiler` | Tokens → `theme-<hash>.css` (§10.1) |
 | `Support\Cache` | File cache (atomic rename), APCu when present |
 | `Support\Http` | cURL client with timeouts; used for Steam and the item catalog |
 | `Support\Time`, `Duration` | Unit-explicit conversions and the plugins' own formatters (§8) |
@@ -186,13 +187,13 @@ swiftlys2-panel/                      ← upload the contents into public_html/ 
 │   │   ├── Auth/        SteamOpenId.php Session.php CurrentUser.php
 │   │   ├── Access/      Permissions.php Roles.php RoleLinks.php GamePermissions.php
 │   │   ├── Module/      ModuleInterface.php ModuleManager.php Manifest.php Hooks.php Nav.php
-│   │   ├── View/        Engine.php Html.php Form.php Pager.php
+│   │   ├── View/        Engine.php Html.php Form.php Pager.php Layout.php
 │   │   ├── Theme/       Tokens.php Compiler.php Presets.php
 │   │   ├── Support/     Cache.php Http.php Time.php Duration.php SteamId.php Csrf.php RateLimit.php Jsonc.php Ip.php
 │   │   ├── Query/       A2S.php
 │   │   ├── I18n/        Translator.php
 │   │   └── Cron/        Scheduler.php
-│   ├── Controllers/     Home Auth Search Profile Account Admin/{Dashboard,Modules,Roles,Users,Theme,Settings,Audit}
+│   ├── Controllers/     Home Auth Search Profile Account Admin/{Dashboard,Modules,Roles,Users,Theme,Layout,Settings,Audit}
 │   ├── views/           layouts/ partials/ pages/ admin/
 │   ├── migrations/      0001_core.php 0002_…
 │   └── lang/            en.json lt.json …
@@ -291,9 +292,10 @@ interface ModuleInterface
 | Hook | Called for | Example |
 |---|---|---|
 | `nav.public`, `nav.admin` | Building menus, after permission filtering | Leaderboard, Admins & groups |
-| `landing.widgets` | Landing page sections, by weight | Live servers, season podium, recent punishments |
+| `landing.widgets` | Landing page panels, each with an id, a default position and a width | Live servers, season podium, recent punishments |
 | `profile.header` | Badges on a player's header | VIP GOLD · 23d left, Staff, Banned |
 | `profile.tabs` | Tabs on a player's page, each with its own permission | Overview, Weapons, Loadout, Inventory, Punishments, Sessions |
+| `profile.overview` | Panels on a player's Overview tab, like `landing.widgets` | Rank summary, statistics, seasons, combos |
 | `player.search` | The search box; each module returns matches | Names from `ranks_players`, `player_sessions` |
 | `player.name` | Resolving a SteamID to a display name, by priority | Steam cache → latest session → Ranks name |
 | `player.online` | Whether a SteamID is on a server now | Admins' open `player_sessions` (§8.1); Ranks, Economy and Shop ask it before every write |
@@ -301,6 +303,10 @@ interface ModuleInterface
 | `game.permissions` | In-game permission strings held by a SteamID | Admins rows and groups |
 | `admin.dashboard` | Dashboard widgets | Active bans, VIP expiring this week |
 | `cron` | Scheduled tasks with an interval | Refresh A2S, refresh Steam names, catalog |
+
+`nav.public`, `landing.widgets`, `profile.tabs` and `profile.overview` are arrangeable: the saved
+layout (§10.2) orders their contributions by id, and any it does not name yet (a module enabled
+later) follow, in their default order.
 
 ### 6.4 Health
 
@@ -884,7 +890,7 @@ one syntax: an exact key, a key ending in `.*` granting everything below that pr
 
 | Prefix | Keys |
 |---|---|
-| `panel.*` | `settings`, `theme`, `modules`, `roles`, `users`, `audit` |
+| `panel.*` | `settings`, `theme`, `layout`, `modules`, `roles`, `users`, `audit` |
 | `admins.*` | `bans.create`, `bans.create.global`, `bans.lift`, `comms.create`, `comms.create.global`, `comms.lift`, `ip.view`, `sessions.view`, `admins.manage`, `exclusions.manage` |
 | `ranks.*` | `settings`, `reset` |
 | `weaponskins.*` | `use`, `manage`, `catalog` |
@@ -906,7 +912,9 @@ permissions and which WeaponSkins features they unlock.
 
 ---
 
-## 10. Theming
+## 10. Theming and layout
+
+### 10.1 Theme
 
 Web admins edit colours on **Admin → Theme**; the rest of the panel is derived. No Sass, no build.
 
@@ -920,6 +928,29 @@ Web admins edit colours on **Admin → Theme**; the rest of the panel is derived
 | Guard rails | Live contrast report (text on page, muted on row, ink on accent, gold on surface) with AA/AAA grades; reset to a preset. |
 
 Requirement: browsers with `color-mix()` (Chrome/Edge 111, Firefox 113, Safari 16.2 — all from 2023).
+
+### 10.2 Layout
+
+Web admins with `panel.layout` arrange the site on **Admin → Layout**. There is one layout for
+every visitor, stored in `sp_settings` (`core` / `layout`); visitors cannot change it.
+
+| Setting | Options |
+|---|---|
+| Menu | A top bar, or a side bar on the left or the right. Below 992 px a side bar folds into the top bar. |
+| Content width | Centred, at most 1,360 px wide (like Bootstrap's `container-xxl`), or full width (`container-fluid`). The two differ only where the window is wider than that column. |
+| Menu order | Every public entry in any order. Admin stays last and only staff see it. |
+| Page panels | The landing page's panels, the player page's tabs (the first opens by default) and its Overview panels. |
+
+The server writes the menu position and width as classes on `<html>` (`sp-nav-left`, `sp-nav-right`,
+`sp-fluid`), so the first paint is already in the right frame and module CSS can follow them.
+
+Each panel declares a width: wide, narrow or full. A wide and a narrow panel next to each other
+share a row (7 + 5 of 12 columns), in either order; anything else takes the whole row. Any order
+therefore leaves no gaps, and nobody sets widths by hand.
+
+Only pages built from independent panels are arrangeable. Servers, leaderboard, punishments, skins
+and shop are each one component, and admin pages stay fixed so every staff member finds the same
+controls in the same place.
 
 ---
 
@@ -950,6 +981,10 @@ fading out), the *sidebar* (plain labels until hovered; the chosen one on an acc
 whose rarity glow rises from the foot over a 2 px rarity line, the *chosen* look (accent outline
 on a tile, accent tint on a row), *pills* in sentence case, boxed uppercase *badges*, the *footer
 bar* with a back button and a red close.
+
+**Tables** name the columns they can do without, in up to three tiers. When a table would not fit
+its card (beside a side bar, on a phone), `panel.js` hides one tier at a time until it does, so a
+narrow layout loses secondary columns instead of scrolling the status and actions out of view.
 
 **Game parts**: the **CS Rating badge** (a slanted plate with a double stripe in the Premier band's
 colour, thousands larger than the rest: **12**,310 — the one slanted shape, because it is CS2's),
@@ -982,7 +1017,7 @@ only** in v1.
 | `/vip` | vipcore | everyone | landing section |
 | `/auth/steam`, `/auth/steam/callback`, `/logout` | core | — | — |
 | `/admin` | core | staff | `admin.html` |
-| `/admin/roles`, `/admin/theme`, `/admin/settings`, `/admin/audit`, `/admin/modules` | core | `panel.*` | `admin-roles.html`, `admin-theme.html`, `admin.html` |
+| `/admin/roles`, `/admin/theme`, `/admin/layout`, `/admin/settings`, `/admin/audit`, `/admin/modules` | core | `panel.*` | `admin-roles.html`, `admin-theme.html`, `admin-layout.html`, `admin.html` |
 | `/admin/admins`, `/admin/groups`, `/admin/exclusions` | admins | `admins.admins.manage` | `admin-admins.html` |
 | `/admin/shop` | shop | `shop.ledger.view`, `shop.credits.manage`, `shop.items.manage`, `shop.catalog` | `admin-shop.html` |
 | `/api/…` | modules | as the page | JSON for the skin changer and htmx fragments |
@@ -994,14 +1029,14 @@ only** in v1.
 
 | Page | Highlights |
 |---|---|
-| Landing | Hero with community name and calls to action; live server list; season podium; recent punishments; WeaponSkins showcase; shop items with how credits are earned; VIP tiers. Each block is a `landing.widgets` contribution, absent when its module is off. |
+| Landing | Hero with community name and calls to action; live server list; season podium; recent punishments; WeaponSkins showcase; shop items with how credits are earned; VIP tiers. Each block is a `landing.widgets` contribution, absent when its module is off, in the layout's order (§10.2). |
 | Servers | Cards with map art, status pill (Online / Full / Offline — up or down from the Admins heartbeat), address with copy, players meter with bots, a status-source indicator (A2S or sessions), Connect (`steam://connect/ip:port`); a drawer with the last report and the players from open sessions; staff see masked IPs and the GUID. |
 | Punishments | Sidebar Bans / Comms; filters Active / Expired / Unbanned (Lifted) / All, Gags / Mutes / Silences, scope; columns ID, player, reason, length, issued, ends (with a served meter), admin, scope, status. A record view with SteamID formats, timeline and, for staff, the kick message the player sees. Staff: give (the in-game flow's steps on one form: player → type → reason → length → scope → match by), lift, change length. |
 | Leaderboard | This season / All time / Previous seasons; XP, kills, playtime; each further ladder (the mockups' 5v5 Elo ladder) with its levels; rank road with distribution; the viewer's own position. |
-| Player | Header (online state, VIP, staff, ban state, credits for the player and staff, SteamID formats, CS Rating); tabs Overview (rank, the player's rating on an Elo ladder, prestige, all-time statistics, seasons, combos), Weapons (per weapon, hit groups), Loadout (T/CT), Inventory (shop items, equipped and time left), Punishments, Sessions (staff). |
+| Player | Header (online state, VIP, staff, ban state, credits for the player and staff, SteamID formats, CS Rating); tabs Overview (rank, the player's rating on an Elo ladder, prestige, all-time statistics, seasons, combos), Weapons (per weapon, hit groups), Loadout (T/CT), Inventory (shop items, equipped and time left), Punishments, Sessions (staff). Tabs and Overview panels follow the layout (§10.2). |
 | Skin changer | The WeaponSkins locker: sidebar by item type, T / CT / Both, weapon categories, finish grid with rarity glow and the equipped finish outlined, inspect card (wear track, seed, StatTrak™ and count, name tag, six sticker slots, charm, apply to), locks from item permissions, the row about to be written. |
 | Shop | The ShopCore locker: credits and a gift button; Buy, Inventory and History tabs; categories in the sidebar with subcategory tabs, as the in-game menus nest them; item tiles with price, duration, owned or equipped, team and in-game-only marks, locks from `RequiredPermission`; an item card with sell value, duration, team and the buy or sell button, or the reason there is none; whether the player is on a server, and what they earn per kill; the rows a purchase writes. |
-| Admin | Dashboard (KPIs, modules with health, system checks, connections, settings, audit log), roles, theme editor, Admins & groups (admins, groups, servers, IP-ban exclusions), Shop (ledger with filters, credits and item grants, catalog import with web sale per module, ShopCore settings). |
+| Admin | Dashboard (KPIs, modules with health, system checks, connections, settings, audit log), roles, theme editor, layout editor (menu position, content width, menu and panel order, with a live preview), Admins & groups (admins, groups, servers, IP-ban exclusions), Shop (ledger with filters, credits and item grants, catalog import with web sale per module, ShopCore settings). |
 
 ---
 
@@ -1125,7 +1160,7 @@ present and a built-in formatter otherwise. Starting set: English and Lithuanian
 
 | Phase | Scope | Exit criterion |
 |---|---|---|
-| 0 · Foundation | Micro-core, installer, Steam sign-in, roles and role links, theme compiler and editor, module manager, audit log, design system | Install from a ZIP on a shared host; sign in; edit the theme |
+| 0 · Foundation | Micro-core, installer, Steam sign-in, roles and role links, theme compiler and editor, layout editor, module manager, audit log, design system | Install from a ZIP on a shared host; sign in; edit the theme |
 | 1 · Read | Servers, Admins (public bans and comms), Ranks (leaderboards, profile), player profile, search, shop catalog, inventory and history | Public pages live against real plugin data |
 | 2 · Write | Admins staff actions and admins/groups editor, WeaponSkins changer and catalog, VIPCore grants, shop purchases, sales and gifts, credit and item adjustments | Staff and players work from the web; changes reach the game |
 | 3 · Polish | i18n (lt, pt-BR, uk), Economy leaderboards, accessibility pass, one-click updater, operator wiki | 1.0 release |

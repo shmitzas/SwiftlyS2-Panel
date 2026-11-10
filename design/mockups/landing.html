@@ -15,8 +15,8 @@
 <div id="sp-top"></div>
 
 <main class="sp-container py-4">
-  <div class="row g-4">
-    <div class="col-xl-7">
+  <div class="row g-4" data-panels="landing">
+    <div data-panel="hero" data-size="wide">
       <section class="sp-hero">
         <span class="sp-eyebrow">SwiftlyS2 community · since 2025</span>
         <h1 class="sp-hero-title">Northside<br><span class="accent">CS2</span> servers</h1>
@@ -26,7 +26,7 @@
         <div class="sp-kpis mt-4" id="hero-kpis"></div>
       </section>
     </div>
-    <div class="col-xl-5" data-module="servers">
+    <div data-panel="servers" data-size="narrow" data-module="servers">
       <section class="sp-shell h-100">
         <div class="sp-shell-head">
           <div><span class="sp-eyebrow"><span class="sp-dot live tone-success me-2"></span>Live now</span><h2 class="sp-title">Servers</h2></div>
@@ -36,10 +36,7 @@
         <div class="sp-shell-body"><div class="sp-rows" id="live"></div></div>
       </section>
     </div>
-  </div>
-
-  <div class="row g-4 mt-1">
-    <div class="col-xl-7" data-module="ranks">
+    <div data-panel="top" data-size="wide" data-module="ranks">
       <section class="sp-shell h-100">
         <div class="sp-shell-head">
           <div><span class="sp-eyebrow" id="season-label">Ranks</span><h2 class="sp-title">Top players</h2></div>
@@ -52,7 +49,7 @@
         </div>
       </section>
     </div>
-    <div class="col-xl-5" data-module="admins">
+    <div data-panel="punishments" data-size="narrow" data-module="admins">
       <section class="sp-shell h-100">
         <div class="sp-shell-head">
           <div><span class="sp-eyebrow">Admins</span><h2 class="sp-title">Recent punishments</h2></div>
@@ -62,43 +59,44 @@
         <div class="sp-shell-body"><div class="sp-rows" id="feed"></div></div>
       </section>
     </div>
+    <div data-panel="skins" data-size="full" data-module="weaponskins">
+      <section class="sp-shell">
+        <div class="sp-shell-body">
+          <div class="row g-4 align-items-center">
+            <div class="col-lg-4">
+              <span class="sp-eyebrow">WeaponSkins</span>
+              <h2 class="sp-title">Your loadout, on the web</h2>
+              <p class="text-muted2 mt-2 mb-3">Pick skins, knives, gloves, agents, music kits and pins here; they are waiting for you
+                the next time you join. Wear, pattern, StatTrak™, name tags and stickers included.</p>
+              <a class="btn btn-primary" href="skins.html" id="skins-cta"><i class="bi bi-crosshair me-1"></i>Open skin changer</a>
+              <div class="fs-8 text-faint mt-2">In game: <span class="sp-key">!ws</span> opens the same choices, <span class="sp-key">!wp</span> reloads web changes.</div>
+            </div>
+            <div class="col-lg-8"><div class="sp-grid" style="--min:140px" id="showcase"></div></div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div data-panel="shop" data-size="full" data-module="shop">
+      <section class="sp-shell">
+        <div class="sp-shell-body">
+          <div class="row g-4 align-items-center">
+            <div class="col-lg-4">
+              <span class="sp-eyebrow">ShopCore</span>
+              <h2 class="sp-title">Spend your credits</h2>
+              <p class="text-muted2 mt-2 mb-2" id="shop-lead"></p>
+              <div class="d-flex flex-wrap gap-1 mb-3" id="shop-earn"></div>
+              <a class="btn btn-primary" href="shop.html"><i class="bi bi-bag-fill me-1"></i>Open the shop</a>
+              <div class="fs-8 text-faint mt-2">In game: <span class="sp-key">!shop</span> to buy, <span class="sp-key">!inventory</span> to equip, <span class="sp-key">!credits</span> for your balance.</div>
+            </div>
+            <div class="col-lg-8"><div class="sp-grid" style="--min:140px" id="shop-showcase"></div></div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div data-panel="vip" data-size="full" data-module="vipcore">
+      <div class="row g-3" id="vip-tiers"></div>
+    </div>
   </div>
-
-  <section class="sp-shell mt-4" data-module="weaponskins">
-    <div class="sp-shell-body">
-      <div class="row g-4 align-items-center">
-        <div class="col-lg-4">
-          <span class="sp-eyebrow">WeaponSkins</span>
-          <h2 class="sp-title">Your loadout, on the web</h2>
-          <p class="text-muted2 mt-2 mb-3">Pick skins, knives, gloves, agents, music kits and pins here; they are waiting for you
-            the next time you join. Wear, pattern, StatTrak™, name tags and stickers included.</p>
-          <a class="btn btn-primary" href="skins.html" id="skins-cta"><i class="bi bi-crosshair me-1"></i>Open skin changer</a>
-          <div class="fs-8 text-faint mt-2">In game: <span class="sp-key">!ws</span> opens the same choices, <span class="sp-key">!wp</span> reloads web changes.</div>
-        </div>
-        <div class="col-lg-8"><div class="sp-grid" style="--min:140px" id="showcase"></div></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="sp-shell mt-4" data-module="shop">
-    <div class="sp-shell-body">
-      <div class="row g-4 align-items-center">
-        <div class="col-lg-4">
-          <span class="sp-eyebrow">ShopCore</span>
-          <h2 class="sp-title">Spend your credits</h2>
-          <p class="text-muted2 mt-2 mb-2" id="shop-lead"></p>
-          <div class="d-flex flex-wrap gap-1 mb-3" id="shop-earn"></div>
-          <a class="btn btn-primary" href="shop.html"><i class="bi bi-bag-fill me-1"></i>Open the shop</a>
-          <div class="fs-8 text-faint mt-2">In game: <span class="sp-key">!shop</span> to buy, <span class="sp-key">!inventory</span> to equip, <span class="sp-key">!credits</span> for your balance.</div>
-        </div>
-        <div class="col-lg-8"><div class="sp-grid" style="--min:140px" id="shop-showcase"></div></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="mt-4" data-module="vipcore">
-    <div class="row g-3" id="vip-tiers"></div>
-  </section>
 </main>
 
 <div id="sp-foot"></div>

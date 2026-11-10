@@ -48,8 +48,8 @@ Supported by this panel out of the box from day one:
 
 | Path | What it is |
 |---|---|
-| [`docs/POC.md`](docs/POC.md) | Toolset, architecture, file and database structure, module system, each plugin's table contract, roles and permissions, theming, security, install and update, roadmap, open questions |
-| [`design/mockups/`](design/mockups/index.html) | Static mockups: landing, servers, punishments, leaderboard, player profile, skin changer, shop, admin dashboard, roles, theme editor, admins and groups, shop administration, design system |
+| [`docs/POC.md`](docs/POC.md) | Toolset, architecture, file and database structure, module system, each plugin's table contract, roles and permissions, theming and layout, security, install and update, roadmap, open questions |
+| [`design/mockups/`](design/mockups/index.html) | Static mockups: landing, servers, punishments, leaderboard, player profile, skin changer, shop, admin dashboard, roles, theme editor, layout editor, admins and groups, shop administration, design system |
 
 ## Viewing the mockups
 
@@ -61,9 +61,11 @@ php -S localhost:8000      # or: python -m http.server 8000
 ```
 
 The bar at the bottom of each page switches the viewer (guest, a VIP player, a player without VIP,
-staff) and the colour preset. The VIP player is on a server and the other player is not, so the
-shop shows both its locked and its open state. As staff, the admin dashboard's module switches
-show and hide each module's pages and menu entries.
+staff), the colour preset, the menu (top bar, or a side bar on the left or right) and the content
+width (centred or full width). The VIP player is on a server and the other player is not, so the
+shop shows both its locked and its open state. As staff, the admin dashboard's module switches show
+and hide each module's pages and menu entries, and **Admin → Layout** sets the menu position and
+content width for everyone and reorders the menu, the landing page's panels and the player page's tabs.
 
 The sample data follows the plugins' real table shapes, units and encodings. Names, IP addresses
 (TEST-NET ranges) and figures are made up.

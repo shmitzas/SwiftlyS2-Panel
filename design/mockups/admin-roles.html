@@ -16,7 +16,7 @@
     .perm:hover { background: var(--sp-surface-hover); }
     .perm .mono { font-size: .78rem; }
     .link-row { display: grid; grid-template-columns: 190px minmax(0, 1fr) auto; gap: .5rem; align-items: center; }
-    section[id] { scroll-margin-top: 80px; }
+    section[id] { scroll-margin-top: calc(var(--sp-sticky-top) + 4px); }
   </style>
 </head>
 <body>
@@ -32,7 +32,7 @@
   if (gate) { mount('#page', gate); return; }
 
   const catalog = {
-    Panel: [['panel.settings', 'General settings and connections'], ['panel.theme', 'Theme editor'], ['panel.modules', 'Enable and configure modules'],
+    Panel: [['panel.settings', 'General settings and connections'], ['panel.theme', 'Theme editor'], ['panel.layout', 'Layout: menu position and order, content width, page panels'], ['panel.modules', 'Enable and configure modules'],
       ['panel.roles', 'Roles and auto-assignment'], ['panel.users', 'Panel users'], ['panel.audit', 'Read the audit log']],
     Admins: [['admins.bans.create', 'Ban on one server'], ['admins.bans.create.global', 'Ban on every server'], ['admins.bans.lift', 'Unban, change length'],
       ['admins.comms.create', 'Gag, mute, silence'], ['admins.comms.create.global', 'Global gags and mutes'], ['admins.comms.lift', 'Ungag, unmute'],

@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Servers · SwiftlyS2 Panel mockup</title>
+  <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/panel.css">
+  <script src="assets/js/sample-data.js"></script>
+  <script src="assets/js/panel.js"></script>
+  <style>
+    .sp-stack { display: flex; }
+    .sp-stack .sp-avatar { margin-left: -6px; border: 2px solid var(--sp-tile-deep); }
+    .sp-stack .sp-avatar:first-child { margin-left: 0; }
+    .sp-server .sp-map { aspect-ratio: 16 / 6.2; }
+  </style>
+</head>
+<body>
+<div id="sp-top"></div>
+
+<main class="sp-container py-4">
+  <section class="sp-shell">
+    <div class="sp-shell-head">
+      <div><span class="sp-eyebrow">Servers</span><h1 class="sp-title">Server browser</h1></div>
+      <div class="d-flex flex-wrap gap-2" id="summary"></div>
+    </div>
+    <div class="sp-rule"></div>
+    <div class="sp-shell-body">
+      <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+        <div class="sp-search position-relative" style="width:260px"><i class="bi bi-search"></i>
+          <input class="form-control" id="q" placeholder="Hostname, map or player" aria-label="Filter servers"></div>
+        <div class="d-flex flex-wrap gap-1" id="modes"></div>
+      </div>
+      <div class="sp-grid" style="--min:300px" id="grid"></div>
+    </div>
+    <div class="sp-shell-foot">
+      <div class="fs-8 text-faint">Up: Admins heartbeat (<span class="mono">servers.LastSeenAt</span>) · details: A2S every 30 s · players: <span class="mono">player_sessions</span></div>
+      <div class="sp-hint">Click a server for details</div>
+      <div class="text-end fs-8 text-faint">Hidden admins still show in A2S counts</div>
+    </div>
+  </section>
+</main>
+
+<div class="offcanvas offcanvas-end" tabindex="-1" id="detail" style="--bs-offcanvas-width:440px">
+  <div class="offcanvas-header align-items-start">
+    <div class="min-w-0"><span class="sp-eyebrow">Server</span><h2 class="sp-title fs-4" id="d-title"></h2></div>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body pt-0" id="d-body"></div>
+</div>
+
+<div id="sp-foot"></div>
+<script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script>
+(() => {
+  SP.layout('servers');
+  const { html, mount, data: D, fmt } = SP;
+  const ONLINE_WITHIN = 150_000; // Admins: HeartbeatSeconds (60) * 2.5, its own "online" test
+
+  const modeOf = (s) => (/AWP/i.test(s.Hostname) ? 'AWP' : /Retake/i.test(s.Hostname) ? 'Retakes' : /Arena/i.test(s.Hostname) ? 'Arenas'
+    : /Surf/i.test(s.Hostname) ? 'Surf' : /Deathmatch|FFA/i.test(s.Hostname) ? 'DM' : /Mix|scrim/i.test(s.Hostname) ? 'Mix' : '5v5');
+  const playersOn = (s) => D.admins.player_sessions.filter((p) => p.Server === s.GUID && p.DisconnectedAt === 0 && SP.now - p.LastSeenAt < ONLINE_WITHIN);
+
+  const online = SP.servers.filter((s) => s.live.online);
+  mount('#summary', html`
+    <span class="sp-pill lg tone-success"><span class="sp-dot live"></span>${online.length}/${SP.servers.length} online</span>
+    <span class="sp-pill lg tone-info"><i class="bi bi-people-fill"></i>${online.reduce((n, s) => n + s.live.players, 0)}/${online.reduce((n, s) => n + s.live.maxPlayers, 0)} players</span>
+    <span class="sp-pill lg tone-muted"><i class="bi bi-arrow-repeat"></i>refreshed 12s ago</span>`);
+
+  let mode = 'All';
+  const modes = ['All', ...new Set(SP.servers.map(modeOf))];
+  const renderModes = () => mount('#modes', modes.map((m) => html`<button class="sp-chip ${m === mode ? 'active' : ''}" data-mode="${m}">${m}</button>`));
+
+  function card(s) {
+    const l = s.live;
+    const full = l.online && l.players >= l.maxPlayers;
+    const ps = playersOn(s);
+    const status = !l.online ? html`<span class="sp-pill solid tone-faint">Offline</span>`
+      : full ? html`<span class="sp-pill solid tone-caution">Full</span>` : html`<span class="sp-pill solid tone-success">Online</span>`;
+    return html`<article class="sp-tile sp-server ${l.online ? '' : 'offline'}" data-guid="${s.GUID}" tabindex="0">
+      <div class="sp-map ${SP.mapClass(l.map)}">
+        <span class="sp-corner">${status}</span>
+        <span class="sp-corner-l"><span class="sp-badge">${modeOf(s)}</span></span>
+        <span class="sp-map-name">${SP.mapTitle(l.map)}<span class="sp-map-code">${l.map}</span></span>
+      </div>
+      <div class="body">
+        <div class="sp-hostname">${s.Hostname}</div>
+        <div class="d-flex align-items-center gap-2 mono fs-8 text-muted2">${s.IP}:${s.Port}
+          <button class="sp-copy" data-copy="${s.IP}:${s.Port}" title="Copy address"><i class="bi bi-copy"></i></button>
+          <span class="ms-auto text-faint" title="${l.source === 'query' ? 'A2S_INFO over UDP' : 'UDP blocked: counted from open sessions'}" data-bs-toggle="tooltip">
+            <i class="bi bi-${l.source === 'query' ? 'reception-4' : 'database-fill'}"></i> ${l.source === 'query' ? 'A2S' : 'sessions'}</span>
+        </div>
+        <div>
+          <div class="d-flex justify-content-between fs-8 mb-1"><span class="sp-stat-label">Players</span>
+            <span class="mono">${l.online ? html`${l.players}<span class="text-faint">/${l.maxPlayers}</span>${l.bots ? html` <span class="text-faint">+${l.bots} bots</span>` : ''}` : '—'}</span></div>
+          <div class="sp-meter lg ${full ? 'tone-caution' : ''}" style="--v:${l.online ? (l.players / l.maxPlayers) * 100 : 0}%"><i></i></div>
+        </div>
+        <div class="d-flex align-items-center gap-2 mt-auto">
+          <span class="sp-stack">${ps.slice(0, 5).map((p) => SP.avatar(p.PlayerName, p.SteamId64, 'sm'))}</span>
+          <span class="fs-8 text-faint">${ps.length ? (l.players > 5 ? `+${l.players - Math.min(5, ps.length)} more` : '') : l.online ? 'no session data' : 'last seen 3h ago'}</span>
+          ${l.online ? html`<a class="btn btn-primary btn-sm ms-auto" href="steam://connect/${s.IP}:${s.Port}"><i class="bi bi-play-fill"></i> Connect</a>` : html`<span class="ms-auto"></span>`}
+        </div>
+      </div>
+    </article>`;
+  }
+
+  function render() {
+    const q = document.getElementById('q').value.trim().toLowerCase();
+    const list = SP.servers.filter((s) => (mode === 'All' || modeOf(s) === mode) &&
+      (!q || s.Hostname.toLowerCase().includes(q) || s.live.map.includes(q) || playersOn(s).some((p) => p.PlayerName.toLowerCase().includes(q))));
+    mount('#grid', list.length ? list.map(card) : html`<div class="sp-empty"><i class="bi bi-hdd-network"></i>No server matches.</div>`);
+    renderModes();
+    SP.tips(document.getElementById('grid'));
+  }
+
+  function openDetail(guid) {
+    const s = SP.server(guid);
+    const ps = playersOn(s).sort((a, b) => a.ConnectedAt - b.ConnectedAt);
+    const staff = SP.can('admins.sessions.view');
+    document.getElementById('d-title').textContent = s.Hostname;
+    mount('#d-body', html`
+      <div class="sp-map ${SP.mapClass(s.live.map)} mb-3"><span class="sp-map-name">${SP.mapTitle(s.live.map)}<span class="sp-map-code">${s.live.map}</span></span></div>
+      <dl class="sp-fields mb-3">
+        <dt>Address</dt><dd class="mono">${s.IP}:${s.Port} <button class="sp-copy" data-copy="connect ${s.IP}:${s.Port}" title="Copy console command"><i class="bi bi-terminal"></i></button></dd>
+        <dt>Players</dt><dd>${s.live.online ? `${s.live.players} / ${s.live.maxPlayers}${s.live.bots ? ` · ${s.live.bots} bots` : ''}` : 'Offline'}</dd>
+        <dt>Status source</dt><dd>${s.live.source === 'query' ? `A2S query · ${fmt.span(SP.now - s.live.queriedAt)} ago` : 'Open sessions (UDP query blocked by host)'}</dd>
+        <dt>Last report</dt><dd>${s.LastSeenAt ? `${fmt.span(SP.now - s.LastSeenAt)} ago` : 'Never'} <span class="text-faint fs-8">· Admins reports every minute</span></dd>
+        ${staff ? html`<dt>Server GUID</dt><dd class="mono fs-8">${s.GUID}</dd>` : ''}
+      </dl>
+      ${s.live.online ? html`<a class="btn btn-solid w-100 mb-4" href="steam://connect/${s.IP}:${s.Port}"><i class="bi bi-play-fill me-1"></i>Connect</a>` : ''}
+      <h3 class="sp-section-title">On the server <small>${ps.length} with a live session</small></h3>
+      <div class="sp-rows">${ps.length ? ps.map((p) => html`<div class="sp-row">
+          ${SP.playerLink(p.SteamId64, p.PlayerName, staff ? SP.admins.maskIp(p.PlayerIp) : '')}
+          <span class="end mono fs-8 text-muted2" title="Connected ${fmt.date(p.ConnectedAt)}">${fmt.span(SP.now - p.ConnectedAt)}</span></div>`)
+        : html`<div class="sp-panel empty">Nobody with a recorded session right now.</div>`}</div>
+      ${staff ? html`<div class="sp-callout tone-caution mt-3"><i class="bi bi-incognito"></i><div><strong>Staff view.</strong> Address column needs <span class="mono">admins.ip.view</span> to unmask.</div></div>` : ''}`);
+    bootstrap.Offcanvas.getOrCreateInstance('#detail').show();
+  }
+
+  document.getElementById('q').addEventListener('input', render);
+  document.addEventListener('click', (e) => {
+    const m = e.target.closest('[data-mode]');
+    if (m) { mode = m.dataset.mode; render(); return; }
+    const c = e.target.closest('.sp-server');
+    if (c && !e.target.closest('a,button')) openDetail(c.dataset.guid);
+  });
+  document.addEventListener('keydown', (e) => { const c = e.target.closest?.('.sp-server'); if (c && e.key === 'Enter') openDetail(c.dataset.guid); });
+  render();
+})();
+</script>
+</body>
+</html>

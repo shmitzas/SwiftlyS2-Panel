@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skins · SwiftlyS2 Panel mockup</title>
+  <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/panel.css">
+  <script src="assets/js/sample-data.js"></script>
+  <script src="assets/js/panel.js"></script>
+  <style>
+    .inspect { max-width: 760px; margin: 0 auto; }
+    .hero { position: relative; display: grid; place-items: center; padding: 1.2rem 1rem .9rem; overflow: hidden; isolation: isolate;
+      background: radial-gradient(70% 90% at 50% 100%, color-mix(in srgb, var(--hue, var(--sp-rarity-1)) 34%, transparent), transparent 70%), linear-gradient(180deg, var(--sp-tile), var(--sp-tile-deep));
+      border: 1px solid var(--sp-edge-soft); border-radius: var(--sp-radius-lg); text-align: center; }
+    .hero img { max-height: 190px; max-width: 100%; filter: drop-shadow(0 16px 18px rgba(0,0,0,.65)); }
+    .hero .bar { width: 96px; height: 3px; border-radius: var(--sp-radius-pill); background: var(--hue, var(--sp-rarity-1)); margin: .8rem auto .4rem; }
+    .field { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: .75rem 1rem; align-items: center; padding: .7rem 0; border-bottom: 1px solid var(--sp-edge-soft); }
+    .field.locked { opacity: .5; }
+    .field .req { margin-left: .4rem; }
+    .slots { display: grid; grid-template-columns: repeat(6, minmax(0, 54px)); gap: .4rem; }
+    .row-code { font: 500 .72rem/1.6 var(--sp-font-mono); color: var(--sp-text-faint); background: var(--sp-surface); border: 1px solid var(--sp-edge); border-radius: var(--sp-radius); padding: .5rem .7rem; overflow-x: auto; white-space: nowrap; }
+    @media (max-width: 767.98px) { .field { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div id="sp-top"></div>
+
+<main class="sp-container py-4">
+  <section class="sp-shell" id="locker">
+    <div class="sp-shell-head">
+      <div><span class="sp-eyebrow">WeaponSkins</span><h1 class="sp-title" id="title">Weapon skins</h1></div>
+      <div class="d-flex flex-wrap gap-2 align-items-center" id="chips"></div>
+    </div>
+    <div class="sp-rule"></div>
+    <div class="sp-shell-body">
+      <div class="sp-locker">
+        <aside class="sp-side" id="side"></aside>
+        <div class="min-w-0" id="content"></div>
+      </div>
+    </div>
+    <div class="sp-shell-foot">
+      <div><button class="btn btn-primary btn-sm" id="back" aria-label="Back"><i class="bi bi-chevron-left"></i></button></div>
+      <div class="sp-hint" id="hint">Click to select</div>
+      <div class="text-end"><a class="btn btn-danger btn-sm" href="profile.html#loadout" aria-label="Close"><i class="bi bi-x-lg"></i></a></div>
+    </div>
+  </section>
+</main>
+
+<div id="sp-foot"></div>
+<script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script>
+(() => {
+  SP.layout('skins');
+  const { html, mount, data: D, fmt } = SP;
+  const W = D.weaponskins;
+  const perms = W.itemPermissions;
+  const sid = SP.viewer.steamId;
+
+  if (!sid) {
+    mount('#locker', html`<div class="sp-shell-body"><div class="sp-empty"><i class="bi bi-steam"></i>
+      <div class="sp-display fs-4 text-body mb-2">Sign in to change your skins</div>
+      <p class="mb-3">Your choices are saved to your SteamID, so the panel needs to know who you are.</p>
+      <a class="btn btn-steam" href="#" data-viewer="player"><i class="bi bi-steam me-1"></i>Sign in through Steam</a></div></div>`);
+    return;
+  }
+
+  /** WeaponSkins' ItemPermissions: an empty key means everyone, otherwise the in-game permission. */
+  const allowed = (key) => SP.canGame(perms[key]);
+  const reqPill = (key) => html`<span class="sp-pill tone-gold req" title="Needs the in-game permission ${perms[key]}" data-bs-toggle="tooltip"><i class="bi bi-lock-fill"></i>${perms[key]}</span>`;
+
+  const sections = [
+    ['weapons', 'crosshair', 'Weapon skins', 'WeaponSkins', D.catalog.weapons.length],
+    ['knives', 'scissors', 'Knives', 'KnifeSkins', D.catalog.knives.length],
+    ['gloves', 'hand-index-thumb', 'Gloves', 'GloveSkins', D.catalog.gloves.length],
+    ['agents', 'person-bounding-box', 'Agents', 'Agents', D.catalog.agents.length],
+    ['music', 'music-note-beamed', 'Music kits', 'MusicKits', D.catalog.music.length],
+    ['graffiti', 'brush-fill', 'Graffiti', 'Graffiti', D.catalog.graffiti.length],
+    ['pins', 'pin-angle-fill', 'Pins', 'Pins', D.catalog.pins.length],
+  ];
+  const state = { section: 'weapons', category: 'rifles', item: null, paint: null, team: 2 };
+  const draft = {};
+
+  const rowFor = (defindex, team = state.team) => W.wp_player_skins.find((r) => r.steamid === sid && r.weapon_team === (team === 'both' ? 2 : team) && r.weapon_defindex === defindex);
+  const equippedKnife = () => W.wp_player_knife.find((r) => r.steamid === sid && r.weapon_team === (state.team === 'both' ? 2 : state.team));
+  const equippedGlove = () => W.wp_player_gloves.find((r) => r.steamid === sid && r.weapon_team === (state.team === 'both' ? 2 : state.team));
+
+  function chrome() {
+    const sec = sections.find((s) => s[0] === state.section);
+    document.getElementById('title').textContent = sec[2];
+    mount('#side', html`${sections.map(([id, icon, label, key, n]) => html`<button class="sp-side-item ${state.section === id ? 'active' : ''} ${allowed(key) ? '' : 'locked'}"
+        data-section="${id}" ${allowed(key) ? '' : SP.raw(`title="Needs the in-game permission ${SP.esc(perms[key])}" data-bs-toggle="tooltip"`)}><i class="bi bi-${icon}"></i>${label}${allowed(key) ? html`<span class="count">${n}</span>` : ''}</button>`)}
+      <div class="sp-side-sep"></div>
+      <div class="sp-panel fs-8 text-muted2"><i class="bi bi-arrow-repeat text-info2 me-1"></i>Saved straight to the database. In game, rejoin or type <span class="sp-key">!wp</span>.
+        Music kits, graffiti and pins count for both teams.</div>`);
+    const teamless = ['music', 'graffiti', 'pins'].includes(state.section);
+    mount('#chips', html`${teamless ? html`<span class="sp-pill lg tone-muted">Both teams</span>` : html`<div class="sp-tabs">
+        <button class="sp-tab ${state.team === 2 ? 'active' : ''}" data-team="2"><i class="bi bi-circle-fill tone-t text-hue"></i>T</button>
+        <button class="sp-tab ${state.team === 3 ? 'active' : ''}" data-team="3"><i class="bi bi-circle-fill tone-ct text-hue"></i>CT</button>
+        <button class="sp-tab ${state.team === 'both' ? 'active' : ''}" data-team="both">Both</button></div>`}`);
+    document.getElementById('back').disabled = !state.item;
+    document.getElementById('hint').textContent = state.paint ? 'Adjust and save' : state.item ? 'Pick a finish' : 'Click to select';
+  }
+
+  const tile = ({ id, image, type, name, value = '', rarity = 1, chosen = false, locked = null, attrs = '' }) => html`
+    <button class="sp-tile rarity r-${rarity} ${chosen ? 'chosen' : ''} ${locked ? 'locked' : ''}" ${SP.raw(attrs)} data-id="${id}" ${locked ? SP.raw('disabled') : ''}>
+      ${chosen ? html`<span class="sp-corner"><span class="sp-pill solid tone-accent">Equipped</span></span>` : ''}
+      ${locked ? html`<span class="sp-lock"><i class="bi bi-lock-fill"></i>Needs ${locked}</span>` : ''}
+      <div class="sp-tile-thumb">${image ? html`<img src="${image}" alt="" loading="lazy">` : html`<i class="bi bi-slash-circle fs-1 text-faint"></i>`}</div>
+      ${type ? html`<div class="sp-tile-type">${type}</div>` : ''}<div class="sp-tile-name">${name}</div>${value ? html`<div class="sp-tile-value">${value}</div>` : ''}
+    </button>`;
+
+  function weaponsGrid() {
+    const list = D.catalog.weapons.filter((w) => w.category === state.category);
+    return html`<div class="sp-tabs mb-3">${SP.cat.categories.map(([k, l]) => {
+        const n = D.catalog.weapons.filter((w) => w.category === k).length;
+        return html`<button class="sp-tab ${state.category === k ? 'active' : ''}" data-category="${k}" ${n ? '' : SP.raw('disabled')}>${l} <span class="count">${n}</span></button>`;
+      })}</div>
+      <div class="sp-grid" style="--min:150px">${list.map((w) => {
+        const row = rowFor(w.defindex);
+        const paint = row && SP.cat.paint(w.classname, row.weapon_paint_id);
+        return tile({ id: w.classname, image: paint?.image ?? w.image, name: w.name, value: paint ? paint.name : '', rarity: paint ? SP.cat.rarity(paint.color) : 1, attrs: 'data-item="weapon"' });
+      })}</div>`;
+  }
+
+  function paintGrid(classname, label, kind) {
+    const item = [...D.catalog.weapons, ...D.catalog.knives, ...D.catalog.gloves].find((x) => x.classname === classname);
+    const row = rowFor(item.defindex);
+    const paints = D.catalog.paintkits[classname] ?? [];
+    return html`<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+        <span class="sp-crumb fs-7 text-uppercase">${label} <i class="bi bi-chevron-right"></i></span><span class="sp-display fs-5">${item.name}</span>
+        <div class="sp-search position-relative ms-auto" style="width:220px"><i class="bi bi-search"></i><input class="form-control form-control-sm" id="paint-q" placeholder="Filter finishes"></div></div>
+      ${paints.length ? '' : html`<div class="sp-callout mb-3"><i class="bi bi-info-circle-fill"></i><div>The mockup's catalog sample carries finishes for AK-47, M4A1-S, AWP, USP-S, Glock-18, Desert Eagle, Karambit and Sport Gloves.
+        The panel loads every finish from its cached item catalog.</div></div>`}
+      <div class="sp-grid" style="--min:150px" id="paints">
+        ${tile({ id: '0', image: item.image, type: 'Default', name: 'Unset', chosen: !row, attrs: `data-paint="0" data-kind="${kind}"` })}
+        ${paints.map((p) => tile({ id: String(p.paint), image: p.image, type: p.rarity, name: p.phase ? `${p.name} · ${p.phase}` : p.name, value: `#${p.paint}`,
+          rarity: SP.cat.rarity(p.color), chosen: row?.weapon_paint_id === p.paint, attrs: `data-paint="${p.paint}" data-kind="${kind}" data-name="${SP.esc(p.name.toLowerCase())}"` }))}
+      </div>`;
+  }
+
+  function inspect() {
+    const item = [...D.catalog.weapons, ...D.catalog.knives, ...D.catalog.gloves].find((x) => x.classname === state.item);
+    const paint = SP.cat.paint(state.item, state.paint);
+    const row = rowFor(item.defindex);
+    const kind = D.catalog.knives.includes(item) ? 'knife' : D.catalog.gloves.includes(item) ? 'glove' : 'weapon';
+    const key = `${item.defindex}:${state.paint}`;
+    const d = draft[key] ??= {
+      wear: row?.weapon_paint_id === Number(state.paint) ? row.weapon_wear : Math.max(paint?.minFloat ?? 0, 0.000001),
+      seed: row?.weapon_paint_id === Number(state.paint) ? row.weapon_seed : 0,
+      st: row?.weapon_paint_id === Number(state.paint) ? !!row.weapon_stattrak : false,
+      stCount: row?.weapon_stattrak_count ?? 0,
+      tag: row?.weapon_paint_id === Number(state.paint) ? row.weapon_nametag ?? '' : '',
+      stickers: row?.weapon_paint_id === Number(state.paint) ? [0, 1, 2, 3, 4, 5].map((i) => row[`weapon_sticker_${i}`]) : Array(6).fill('0;0;0;0;0;0;0'),
+      keychain: row?.weapon_keychain ?? '0;0;0;0;0',
+    };
+    const [extShort, extLong] = SP.cat.exterior(d.wear);
+    const can = { wear: allowed('Wear'), seed: allowed('Seed'), tag: allowed('Nametag'), stickers: allowed('Stickers'), keychain: allowed('Keychains') };
+    const lockedRow = (k, permKey) => (can[k] ? '' : reqPill(permKey));
+    const stickerSlot = (code, i) => {
+      const s = SP.ws.sticker(code);
+      return html`<button class="sp-slot ${s ? 'filled' : ''} ${s ? `r-${SP.cat.rarity(s.color)}` : ''}" data-sticker="${i}" ${can.stickers ? '' : SP.raw('disabled')} title="${s ? s.name : `Sticker ${i + 1} (empty)`}">
+        <span class="n">${i + 1}</span>${s?.image ? html`<img src="${s.image}" alt="">` : html`<i class="bi bi-plus-lg"></i>`}</button>`;
+    };
+    const keychain = Number(d.keychain.split(';')[0]) ? D.catalog.keychains.find((k) => k.defindex === Number(d.keychain.split(';')[0])) : null;
+    return html`<div class="inspect">
+      <div class="hero r-${paint ? SP.cat.rarity(paint.color) : 1} mb-3">
+        <img src="${paint?.image ?? item.image}" alt="">
+        <div class="bar"></div>
+        <div class="sp-tile-type">${paint?.rarity ?? 'Default'}</div>
+        <div class="sp-display fs-4">${kind !== 'weapon' ? '★ ' : ''}${item.name} | ${paint ? paint.name : 'Vanilla'}${paint?.phase ? ` (${paint.phase})` : ''}</div>
+      </div>
+      <div class="field ${can.wear ? '' : 'locked'}">
+        <label class="form-label mb-0">Wear ${lockedRow('wear', 'Wear')}</label>
+        <div><div class="d-flex justify-content-between align-items-center"><span class="sp-pill tone-${{ FN: 'success', MW: 'success', FT: 'caution', WW: 't', BS: 'danger' }[extShort]}">${extLong}</span>
+          <input class="form-control form-control-sm mono text-end" style="width:120px" id="f-wear" value="${d.wear.toFixed(6)}" ${can.wear ? '' : SP.raw('disabled')}></div>
+          <div class="sp-wear" style="--val:${d.wear}; --min:${paint?.minFloat ?? 0}; --max:${paint?.maxFloat ?? 1}"><span class="out-lo"></span><span class="lit"></span><span class="out-hi"></span><span class="knob"></span>
+            <input type="range" min="0" max="1" step="0.0001" value="${d.wear}" id="f-wear-range" aria-label="Wear" ${can.wear ? '' : SP.raw('disabled')}></div>
+          <div class="sp-wear-legend"><span>FN</span><span>MW</span><span>FT</span><span>WW</span><span>BS</span></div></div>
+      </div>
+      <div class="field ${can.seed ? '' : 'locked'}"><label class="form-label mb-0" for="f-seed">Pattern seed ${lockedRow('seed', 'Seed')}</label>
+        <input class="form-control form-control-sm mono" style="max-width:160px" type="number" min="0" max="1000" id="f-seed" value="${d.seed}" ${can.seed ? '' : SP.raw('disabled')}></div>
+      ${kind === 'glove' ? '' : html`
+      <div class="field"><label class="form-label mb-0">StatTrak™</label>
+        <div class="d-flex align-items-center gap-3"><div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" id="f-st" ${d.st ? SP.raw('checked') : ''}></div>
+          <input class="form-control form-control-sm mono" style="max-width:140px" type="number" min="0" id="f-stc" value="${d.stCount}" ${d.st ? '' : SP.raw('disabled')} aria-label="StatTrak count"></div></div>
+      <div class="field ${can.tag ? '' : 'locked'}"><label class="form-label mb-0" for="f-tag">Name tag ${lockedRow('tag', 'Nametag')}</label>
+        <input class="form-control form-control-sm" maxlength="20" id="f-tag" value="${d.tag}" placeholder="No name tag" ${can.tag ? '' : SP.raw('disabled')}></div>`}
+      ${kind === 'weapon' ? html`
+      <div class="field ${can.stickers ? '' : 'locked'}"><label class="form-label mb-0">Stickers ${lockedRow('stickers', 'Stickers')}</label><div class="slots">${d.stickers.map(stickerSlot)}</div></div>
+      <div class="field ${can.keychain ? '' : 'locked'}"><label class="form-label mb-0">Charm ${lockedRow('keychain', 'Keychains')}</label>
+        <div class="d-flex align-items-center gap-2"><button class="sp-slot ${keychain ? 'filled' : ''}" style="width:54px" ${can.keychain ? '' : SP.raw('disabled')}>${keychain ? html`<img src="${keychain.image}" alt="">` : html`<i class="bi bi-plus-lg"></i>`}</button>
+          <span class="fs-7 text-muted2">${keychain ? keychain.name : 'No charm'}</span></div></div>` : ''}
+      <div class="field"><label class="form-label mb-0">Apply to</label><div class="d-flex gap-3">
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="t2" ${state.team !== 3 ? SP.raw('checked') : ''}><label class="form-check-label" for="t2">Terrorist</label></div>
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="t3" ${state.team !== 2 ? SP.raw('checked') : ''}><label class="form-check-label" for="t3">Counter-Terrorist</label></div></div></div>
+      <div class="d-flex flex-wrap gap-2 justify-content-end mt-3">
+        ${row?.weapon_paint_id === Number(state.paint) ? html`<button class="btn btn-danger" data-act="reset"><i class="bi bi-trash3-fill me-1"></i>Remove</button>` : ''}
+        <button class="btn btn-sp" data-act="cancel">Cancel</button>
+        <button class="btn btn-solid" data-act="save"><i class="bi bi-check2-circle me-1"></i>Save</button></div>
+      <div class="mt-3"><span class="sp-stat-label d-block mb-1">Row the panel writes · wp_player_skins</span>
+        <div class="row-code">steamid=${sid} · weapon_team=${state.team === 'both' ? '2,3' : state.team} · weapon_defindex=${item.defindex} · weapon_paint_id=${state.paint}
+          · weapon_wear=${d.wear.toFixed(6)} · weapon_seed=${d.seed} · weapon_stattrak=${d.st ? 1 : 0} · weapon_sticker_0=${d.stickers[0]}${kind === 'knife' ? html` · + wp_player_knife.knife=${item.classname}` : kind === 'glove' ? html` · + wp_player_gloves.weapon_defindex=${item.defindex}` : ''}</div></div>
+    </div>`;
+  }
+
+  function simpleGrid(list, chosenId, sub) {
+    return html`<div class="sp-grid" style="--min:150px">${list.map((x) => tile({ id: String(x.defindex), image: x.image, type: x.rarity, name: x.name.replace(/^(Music Kit|Sealed Graffiti) \| /, '').replace(/ \|.*$/, ''),
+      value: sub ? sub(x) : '', rarity: SP.cat.rarity(x.color), chosen: x.defindex === chosenId, attrs: 'data-pick="1"' }))}</div>`;
+  }
+
+  function content() {
+    const s = state.section;
+    const key = sections.find((x) => x[0] === s)[3];
+    if (!allowed(key)) return mount('#content', html`<div class="sp-empty"><i class="bi bi-lock-fill"></i><div class="sp-display fs-5 text-body">Needs the in-game permission “${perms[key]}”</div>
+      <p class="mb-0">WeaponSkins' <span class="mono">ItemPermissions.${key}</span>. You get it with VIP or from an admin.</p></div>`);
+    if (state.paint !== null) return mount('#content', inspect());
+    if (s === 'weapons') return mount('#content', state.item ? paintGrid(state.item, 'Weapon skins', 'weapon') : weaponsGrid());
+    if (s === 'knives') {
+      if (state.item) return mount('#content', paintGrid(state.item, 'Knives', 'knife'));
+      const k = equippedKnife();
+      return mount('#content', html`<div class="sp-grid" style="--min:150px">${D.catalog.knives.map((x) => tile({ id: x.classname, image: x.image, type: '★ Knife', name: x.name, rarity: 6, chosen: k?.knife === x.classname, attrs: 'data-item="knife"' }))}</div>`);
+    }
+    if (s === 'gloves') {
+      if (state.item) return mount('#content', paintGrid(state.item, 'Gloves', 'glove'));
+      const g = equippedGlove();
+      return mount('#content', html`<div class="sp-grid" style="--min:150px">${D.catalog.gloves.map((x) => tile({ id: x.classname, image: x.image, type: '★ Gloves', name: x.name, rarity: 6, chosen: g?.weapon_defindex === x.defindex, attrs: 'data-item="glove"' }))}</div>`);
+    }
+    if (s === 'agents') {
+      const team = state.team === 3 ? 'ct' : 't';
+      const cur = W.wp_player_agents.find((r) => r.steamid === sid && r.weapon_team === (team === 'ct' ? 3 : 2))?.agent_index;
+      return mount('#content', html`${allowed('Patches') ? '' : html`<div class="sp-callout tone-caution mb-3"><i class="bi bi-lock-fill"></i><div>Agent patches need <b>${perms.Patches}</b>.</div></div>`}
+        ${simpleGrid(D.catalog.agents.filter((a) => a.team === team), cur)}`);
+    }
+    if (s === 'music') return mount('#content', simpleGrid(D.catalog.music, W.wp_player_music.find((r) => r.steamid === sid)?.music_id));
+    if (s === 'pins') return mount('#content', simpleGrid(D.catalog.pins, W.wp_player_pins.find((r) => r.steamid === sid)?.id));
+    if (s === 'graffiti') return mount('#content', html`<div class="sp-callout mb-3"><i class="bi bi-brush-fill"></i><div>Spray with <span class="sp-key">!spray</span> or bind <span class="sp-key">bind t sw_spray</span>. One graffiti on the map at a time.</div></div>
+      ${simpleGrid(D.catalog.graffiti, null)}`);
+  }
+
+  function render() { chrome(); content(); SP.tips(); }
+
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-section],[data-team],[data-category],[data-item],[data-paint],[data-pick],[data-act],#back');
+    if (!t || t.disabled) return;
+    if (t.dataset.section) { Object.assign(state, { section: t.dataset.section, item: null, paint: null }); }
+    else if (t.dataset.team) { state.team = t.dataset.team === 'both' ? 'both' : Number(t.dataset.team); }
+    else if (t.dataset.category) { state.category = t.dataset.category; }
+    else if (t.dataset.item) { state.item = t.dataset.id; }
+    else if (t.dataset.paint !== undefined) { state.paint = t.dataset.paint === '0' ? null : t.dataset.paint; if (t.dataset.paint === '0') SP.toast('Unset', 'The default finish is used again.', 'tone-muted'); }
+    else if (t.dataset.pick) { SP.toast('Equipped', `${t.querySelector('.sp-tile-name').textContent} · saved`, 'tone-success'); }
+    else if (t.dataset.act === 'save') { SP.toast('Saved', 'In game: rejoin or type !wp to load it now.', 'tone-success'); state.paint = null; }
+    else if (t.dataset.act === 'reset') { SP.toast('Removed', 'This weapon is back to its default finish.', 'tone-danger'); state.paint = null; }
+    else if (t.dataset.act === 'cancel') { state.paint = null; }
+    else if (t.id === 'back') { if (state.paint !== null) state.paint = null; else state.item = null; }
+    render();
+  });
+  document.addEventListener('input', (e) => {
+    if (e.target.id === 'paint-q') {
+      const q = e.target.value.toLowerCase();
+      document.querySelectorAll('#paints [data-name]').forEach((el) => { el.hidden = !el.dataset.name.includes(q); });
+    }
+    if (e.target.id === 'f-wear-range' || e.target.id === 'f-wear') {
+      const v = Math.min(1, Math.max(0, Number(e.target.value) || 0));
+      const item = [...D.catalog.weapons, ...D.catalog.knives, ...D.catalog.gloves].find((x) => x.classname === state.item);
+      draft[`${item.defindex}:${state.paint}`].wear = v;
+      const [short, long] = SP.cat.exterior(v);
+      document.querySelector('.inspect .sp-wear').style.setProperty('--val', v);
+      const pill = document.querySelector('.inspect .field .sp-pill');
+      pill.className = `sp-pill tone-${{ FN: 'success', MW: 'success', FT: 'caution', WW: 't', BS: 'danger' }[short]}`;
+      pill.textContent = long;
+      if (e.target.id === 'f-wear-range') document.getElementById('f-wear').value = v.toFixed(6);
+    }
+    if (e.target.id === 'f-st') {
+      const item = [...D.catalog.weapons, ...D.catalog.knives, ...D.catalog.gloves].find((x) => x.classname === state.item);
+      draft[`${item.defindex}:${state.paint}`].st = e.target.checked;
+      document.getElementById('f-stc').disabled = !e.target.checked;
+    }
+  });
+  render();
+})();
+</script>
+</body>
+</html>

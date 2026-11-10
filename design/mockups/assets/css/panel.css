@@ -1,0 +1,1239 @@
+/*
+ * SwiftlyS2 Panel - design system.
+ *
+ * CS2's main-menu look on the web: slate-blue surfaces, white-on-dark text, softly rounded corners,
+ * uppercase only where CS2 uses it (titles, tabs, buttons, tags). Default colours are CS2's own, read
+ * from its Panorama stylesheet (csgostyles: backgroundGradient, item tiles, team, rarity, CS Rating);
+ * the structure - one accent, one job per hue, fills that stay dim - is CustomHUD's.
+ * The theme editor writes ONLY the "hue" and "surface" tokens below; every ladder step
+ * (Half / Dim / Soft / Wash / Fade) is derived with color-mix(), so one colour re-themes the panel.
+ * Components draw from a local --hue, which tone classes (.tone-*, .r-1..10) set.
+ */
+
+/* =========================================================================================
+   1. Tokens
+   ========================================================================================= */
+:root {
+  color-scheme: dark;
+
+  /* Hues. Accent = interaction (selection, the active entry, your own pick). */
+  --sp-accent: #f0953a;        /* Counter-Strike orange */
+  --sp-accent-strong: #ffbd7a;
+  --sp-on-accent: #10171f;
+  --sp-gold: #eabe54;          /* values, prices, the leader */
+  --sp-gold-deep: #c99a3a;
+  --sp-info: #5aaeff;          /* counters, share meters */
+  --sp-info-strong: #8cc4ff;
+  --sp-success: #57c97a;
+  --sp-success-strong: #8fe0a8;
+  --sp-caution: #f2d43a;
+  --sp-danger: #eb4b4b;
+  --sp-danger-strong: #ff8f8f;
+  --sp-ct: #96c8fa;            /* CS2 ct-color */
+  --sp-t: #eabe54;             /* CS2 t-color */
+  --sp-legend: #c08cff;        /* a tier above gold */
+
+  /* Surfaces: CS2's slate blue - its menu gradient #14202b-#1e2d3d and item tiles #1e2a38-#19232f. */
+  --sp-bg: #131d27;
+  --sp-surface: #0f1720;
+  --sp-surface-raised: #172230;
+  --sp-surface-row: #1d2936;
+  --sp-surface-hover: #263649;
+  --sp-edge: #2e3d4e;
+  --sp-tile: #1e2a38;
+  --sp-tile-deep: #19232f;
+  --sp-tile-hover: #27364a;
+  --sp-shell-opacity: 88%;
+
+  /* Text. Ink is dark text on a solid hue. */
+  --sp-text: #eef2f6;
+  --sp-text-muted: #a9b6c4;
+  --sp-text-faint: #8091a5;
+  --sp-text-ink: #10171f;
+
+  /* Game data - CS2's own colours. Editable, but presets never change them. */
+  --sp-rarity-1: #b0c3d9;  --sp-rarity-2: #5e98d9;  --sp-rarity-3: #4b69ff;  --sp-rarity-4: #8847ff;
+  --sp-rarity-5: #d32ce6;  --sp-rarity-6: #eb4b4b;  --sp-rarity-7: #e4ae39;  --sp-rarity-8: #cf6a32;
+  --sp-rarity-9: #ffd700;  --sp-rarity-10: #4c9952;
+  --sp-wear-fn: #3fdc5a;  --sp-wear-mw: #a6dfa6;  --sp-wear-ft: #f2d43a;  --sp-wear-ww: #f5973a;  --sp-wear-bs: #ff7a72;
+  --sp-rating-0: #b0c3d9;  --sp-rating-1: #8cc6ff;  --sp-rating-2: #6a7dff;  --sp-rating-3: #c166ff;
+  --sp-rating-4: #f03cff;  --sp-rating-5: #eb4b4b;  --sp-rating-6: #ffd700;
+  --sp-level-1: #eeeeee;  --sp-level-2: #1ce400;  --sp-level-4: #ffc800;  --sp-level-8: #ff6309;  --sp-level-10: #fe1f00;
+  --sp-map-awp: #10495a;  --sp-map-awp-deep: #0b141d;  --sp-map-aim: #5a1a1a;  --sp-map-aim-deep: #120b0d;
+  --sp-map-surf: #3a1f63; --sp-map-surf-deep: #0d0b14;  --sp-map-other: #4a3215; --sp-map-other-deep: #0e0c0a;
+
+  /* Shape, type, motion. The theme editor's radius slider moves --sp-radius and --sp-radius-lg; the rest follow. */
+  --sp-radius: 6px;
+  --sp-radius-lg: 10px;
+  --sp-radius-sm: calc(var(--sp-radius) * .67);
+  --sp-radius-pill: calc(var(--sp-radius) * 99);
+  /* CS2 sets its UI text in Noto Sans; Barlow Semi Condensed stands in for Stratum2, which is not redistributable. */
+  --sp-font-body: "Noto Sans Variable", "Noto Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --sp-font-display: "Barlow Semi Condensed", "Noto Sans Variable", "Arial Narrow", system-ui, sans-serif;
+  --sp-font-mono: "Noto Sans Mono Variable", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sp-track-caps: .05em;
+  --sp-track-title: .01em;
+  --sp-fast: 120ms;
+  --sp-med: 180ms;
+  --sp-ease: cubic-bezier(.2, .7, .2, 1);
+  --sp-bg-image: none;
+
+  /* Derived accent ladder (CustomHUD's step names). */
+  --sp-accent-half: color-mix(in srgb, var(--sp-accent) 50%, transparent);
+  --sp-accent-dim: color-mix(in srgb, var(--sp-accent) 35%, transparent);
+  --sp-accent-soft: color-mix(in srgb, var(--sp-accent) 18%, transparent);
+  --sp-accent-wash: color-mix(in srgb, var(--sp-accent) 8%, transparent);
+  --sp-accent-fade: color-mix(in srgb, var(--sp-accent) 0%, transparent);
+  --sp-edge-soft: color-mix(in srgb, var(--sp-edge) 60%, transparent);
+  --sp-hover-wash: color-mix(in srgb, var(--sp-text) 7%, transparent);
+  --sp-bg-lift: color-mix(in srgb, var(--sp-bg) 86%, #7fa6cc);
+  --sp-shadow-drop: 0 18px 44px -22px rgba(0, 0, 0, .85);
+  --sp-shadow-soft: 0 12px 28px -16px rgba(0, 0, 0, .75);
+  --sp-sheen: inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+
+/* =========================================================================================
+   2. Bootstrap bridge - Bootstrap 5.3 ships literal colours in several components; route them to tokens.
+   ========================================================================================= */
+:root,
+[data-bs-theme="dark"] {
+  --bs-body-font-family: var(--sp-font-body);
+  --bs-body-font-size: .9375rem;
+  --bs-body-bg: var(--sp-bg);
+  --bs-body-color: var(--sp-text);
+  --bs-emphasis-color: #fff;
+  --bs-secondary-color: var(--sp-text-muted);
+  --bs-tertiary-color: var(--sp-text-faint);
+  --bs-secondary-bg: var(--sp-surface-row);
+  --bs-tertiary-bg: var(--sp-surface-raised);
+  --bs-border-color: var(--sp-edge);
+  --bs-border-color-translucent: var(--sp-edge-soft);
+  --bs-border-radius: var(--sp-radius);
+  --bs-border-radius-sm: var(--sp-radius-sm);
+  --bs-border-radius-lg: var(--sp-radius-lg);
+  --bs-border-radius-xl: var(--sp-radius-lg);
+  --bs-border-radius-xxl: var(--sp-radius-lg);
+  --bs-border-radius-pill: var(--sp-radius-pill);
+  --bs-link-color: var(--sp-accent);
+  --bs-link-hover-color: var(--sp-accent-strong);
+  --bs-focus-ring-color: var(--sp-accent-dim);
+  --bs-heading-color: var(--sp-text);
+  --bs-code-color: var(--sp-gold);
+  --bs-highlight-bg: var(--sp-accent-soft);
+  --bs-highlight-color: var(--sp-text);
+}
+
+a { color: var(--sp-accent); text-decoration: none; }
+a:hover { color: var(--sp-accent-strong); }
+
+.btn {
+  --bs-btn-font-family: var(--sp-font-display);
+  --bs-btn-font-weight: 600;
+  --bs-btn-font-size: .85rem;
+  --bs-btn-padding-y: .5rem;
+  --bs-btn-padding-x: 1rem;
+  --bs-btn-border-radius: var(--sp-radius);
+  --bs-btn-disabled-opacity: .4;
+  letter-spacing: var(--sp-track-caps);
+  text-transform: uppercase;
+  transition: background-color var(--sp-fast), border-color var(--sp-fast), color var(--sp-fast), box-shadow var(--sp-fast);
+}
+.btn:focus-visible { box-shadow: 0 0 0 .2rem var(--sp-accent-dim); }
+.btn-sm { --bs-btn-padding-y: .3rem; --bs-btn-padding-x: .65rem; --bs-btn-font-size: .75rem; }
+.btn-lg { --bs-btn-padding-y: .7rem; --bs-btn-padding-x: 1.4rem; --bs-btn-font-size: 1rem; }
+
+/* Control: a button on a row surface in a hairline; hover lightens it, as CS2's buttons do. */
+.btn-sp, .btn-secondary, .btn-outline-secondary, .btn-light, .btn-dark {
+  --bs-btn-color: var(--sp-text);
+  --bs-btn-bg: var(--sp-surface-row);
+  --bs-btn-border-color: var(--sp-edge);
+  --bs-btn-hover-color: var(--sp-text);
+  --bs-btn-hover-bg: var(--sp-surface-hover);
+  --bs-btn-hover-border-color: color-mix(in srgb, var(--sp-text) 22%, transparent);
+  --bs-btn-active-color: var(--sp-text);
+  --bs-btn-active-bg: var(--sp-surface-hover);
+  --bs-btn-active-border-color: var(--sp-accent-half);
+  --bs-btn-disabled-color: var(--sp-text-faint);
+  --bs-btn-disabled-bg: var(--sp-surface-row);
+  --bs-btn-disabled-border-color: var(--sp-edge);
+}
+/* Primary: tinted, never a full-strength fill under a label. */
+.btn-primary, .btn-outline-primary, .btn-sp-primary {
+  --bs-btn-color: var(--sp-accent-strong);
+  --bs-btn-bg: var(--sp-accent-soft);
+  --bs-btn-border-color: var(--sp-accent-half);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--sp-accent-dim);
+  --bs-btn-hover-border-color: var(--sp-accent);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--sp-accent-half);
+  --bs-btn-active-border-color: var(--sp-accent);
+  --bs-btn-disabled-color: var(--sp-accent-half);
+  --bs-btn-disabled-bg: var(--sp-accent-wash);
+  --bs-btn-disabled-border-color: var(--sp-accent-dim);
+}
+/* Solid: the page's one main action - the hue itself with ink on it. */
+.btn-solid {
+  --bs-btn-color: var(--sp-on-accent);
+  --bs-btn-bg: var(--sp-accent);
+  --bs-btn-border-color: var(--sp-accent);
+  --bs-btn-hover-color: var(--sp-on-accent);
+  --bs-btn-hover-bg: var(--sp-accent-strong);
+  --bs-btn-hover-border-color: var(--sp-accent-strong);
+  --bs-btn-active-color: var(--sp-on-accent);
+  --bs-btn-active-bg: var(--sp-accent);
+  --bs-btn-active-border-color: var(--sp-accent);
+  --bs-btn-disabled-color: var(--sp-on-accent);
+  --bs-btn-disabled-bg: var(--sp-accent);
+  --bs-btn-disabled-border-color: var(--sp-accent);
+}
+.btn-danger, .btn-outline-danger {
+  --bs-btn-color: var(--sp-danger-strong);
+  --bs-btn-bg: color-mix(in srgb, var(--sp-danger) 16%, transparent);
+  --bs-btn-border-color: color-mix(in srgb, var(--sp-danger) 50%, transparent);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: color-mix(in srgb, var(--sp-danger) 35%, transparent);
+  --bs-btn-hover-border-color: var(--sp-danger);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: color-mix(in srgb, var(--sp-danger) 50%, transparent);
+  --bs-btn-active-border-color: var(--sp-danger);
+}
+.btn-success, .btn-outline-success {
+  --bs-btn-color: var(--sp-success-strong);
+  --bs-btn-bg: color-mix(in srgb, var(--sp-success) 14%, transparent);
+  --bs-btn-border-color: color-mix(in srgb, var(--sp-success) 45%, transparent);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: color-mix(in srgb, var(--sp-success) 32%, transparent);
+  --bs-btn-hover-border-color: var(--sp-success);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: color-mix(in srgb, var(--sp-success) 45%, transparent);
+  --bs-btn-active-border-color: var(--sp-success);
+}
+.btn-ghost {
+  --bs-btn-color: var(--sp-text-muted);
+  --bs-btn-bg: transparent;
+  --bs-btn-border-color: transparent;
+  --bs-btn-hover-color: var(--sp-text);
+  --bs-btn-hover-bg: var(--sp-surface-hover);
+  --bs-btn-hover-border-color: transparent;
+  --bs-btn-active-color: var(--sp-text);
+  --bs-btn-active-bg: var(--sp-surface-hover);
+  --bs-btn-active-border-color: transparent;
+}
+/* Steam's own sign-in colours: recognisable on every theme. */
+.btn-steam {
+  --bs-btn-color: #c7d5e0;
+  --bs-btn-bg: #171a21;
+  --bs-btn-border-color: #2a475e;
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: #1b2838;
+  --bs-btn-hover-border-color: #66c0f4;
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: #1b2838;
+  --bs-btn-active-border-color: #66c0f4;
+}
+.btn-icon { --bs-btn-padding-x: .55rem; }
+
+.form-control, .form-select {
+  background-color: var(--sp-surface);
+  border-color: var(--sp-edge);
+  color: var(--sp-text);
+  border-radius: var(--sp-radius);
+}
+.form-control:focus, .form-select:focus {
+  background-color: var(--sp-surface);
+  color: var(--sp-text);
+  border-color: var(--sp-accent-half);
+  box-shadow: 0 0 0 .2rem var(--sp-accent-soft);
+}
+.form-control::placeholder { color: var(--sp-text-faint); }
+.form-control:disabled, .form-select:disabled { background-color: var(--sp-surface-row); color: var(--sp-text-faint); }
+.form-label, .col-form-label {
+  font: 600 .8rem/1.3 var(--sp-font-body);
+  color: var(--sp-text-muted);
+}
+.form-text { color: var(--sp-text-faint); font-size: .8rem; }
+.input-group-text { background: var(--sp-surface-row); border-color: var(--sp-edge); color: var(--sp-text-muted); }
+.form-check-input { background-color: var(--sp-surface); border-color: var(--sp-edge); }
+.form-check-input:focus { border-color: var(--sp-accent-half); box-shadow: 0 0 0 .2rem var(--sp-accent-soft); }
+.form-check-input:checked { background-color: var(--sp-accent); border-color: var(--sp-accent); }
+.form-check-input:checked[type="checkbox"] {
+  --bs-form-check-bg-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%2304110f' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+}
+/* The knob is a gradient rather than Bootstrap's SVG so it can follow --sp-on-accent. */
+.form-switch .form-check-input,
+.form-switch .form-check-input:focus {
+  --bs-form-switch-bg: radial-gradient(circle, var(--sp-text-faint) 62%, transparent 66%);
+  background-size: .78em .78em;
+  background-position: .12em center;
+}
+.form-switch .form-check-input:checked {
+  --bs-form-switch-bg: radial-gradient(circle, var(--sp-on-accent) 62%, transparent 66%);
+  background-position: calc(100% - .12em) center;
+}
+.form-range::-webkit-slider-thumb { background: var(--sp-accent); }
+.form-range::-moz-range-thumb { background: var(--sp-accent); }
+.form-range::-webkit-slider-runnable-track { background: var(--sp-surface-row); }
+.form-range::-moz-range-track { background: var(--sp-surface-row); }
+.form-control-color { padding: .25rem; width: 3rem; }
+
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--sp-text);
+  --bs-table-border-color: var(--sp-edge);
+  --bs-table-hover-bg: var(--sp-surface-hover);
+  --bs-table-hover-color: var(--sp-text);
+  --bs-table-striped-bg: var(--sp-accent-wash);
+}
+
+.dropdown-menu {
+  --bs-dropdown-bg: var(--sp-surface-raised);
+  --bs-dropdown-border-color: var(--sp-edge);
+  --bs-dropdown-color: var(--sp-text);
+  --bs-dropdown-link-color: var(--sp-text-muted);
+  --bs-dropdown-link-hover-color: var(--sp-text);
+  --bs-dropdown-link-hover-bg: var(--sp-surface-hover);
+  --bs-dropdown-link-active-color: var(--sp-accent-strong);
+  --bs-dropdown-link-active-bg: var(--sp-accent-soft);
+  --bs-dropdown-divider-bg: var(--sp-edge);
+  --bs-dropdown-header-color: var(--sp-text-faint);
+  --bs-dropdown-border-radius: var(--sp-radius-lg);
+  --bs-dropdown-item-border-radius: var(--sp-radius);
+  --bs-dropdown-padding-x: .3rem;
+  box-shadow: var(--sp-shadow-drop);
+}
+.dropdown-header { font: 600 .7rem var(--sp-font-display); letter-spacing: var(--sp-track-caps); text-transform: uppercase; }
+
+.modal {
+  --bs-modal-bg: var(--sp-surface-raised);
+  --bs-modal-border-color: var(--sp-edge-soft);
+  --bs-modal-header-border-color: var(--sp-edge);
+  --bs-modal-footer-border-color: var(--sp-edge);
+  --bs-modal-border-radius: var(--sp-radius-lg);
+  --bs-modal-inner-border-radius: calc(var(--sp-radius-lg) - 1px);
+  --bs-backdrop-opacity: .72;
+}
+.modal-content {
+  background: linear-gradient(180deg, var(--sp-surface-raised), var(--sp-surface));
+  box-shadow: var(--sp-shadow-drop), var(--sp-sheen);
+}
+.offcanvas {
+  --bs-offcanvas-bg: var(--sp-surface-raised);
+  --bs-offcanvas-border-color: var(--sp-edge);
+  --bs-offcanvas-color: var(--sp-text);
+}
+.tooltip {
+  --bs-tooltip-bg: var(--sp-surface);
+  --bs-tooltip-color: var(--sp-text);
+  --bs-tooltip-border-radius: var(--sp-radius);
+  --bs-tooltip-font-size: .8rem;
+}
+.tooltip-inner { border: 1px solid var(--sp-edge); box-shadow: var(--sp-shadow-drop); }
+.popover {
+  --bs-popover-bg: var(--sp-surface-raised);
+  --bs-popover-border-color: var(--sp-edge);
+  --bs-popover-header-bg: var(--sp-surface-row);
+  --bs-popover-header-color: var(--sp-text);
+  --bs-popover-body-color: var(--sp-text);
+}
+.pagination {
+  --bs-pagination-bg: var(--sp-surface-row);
+  --bs-pagination-border-color: var(--sp-edge);
+  --bs-pagination-color: var(--sp-text-muted);
+  --bs-pagination-hover-bg: var(--sp-surface-hover);
+  --bs-pagination-hover-color: var(--sp-text);
+  --bs-pagination-hover-border-color: var(--sp-accent-half);
+  --bs-pagination-focus-bg: var(--sp-surface-hover);
+  --bs-pagination-focus-color: var(--sp-text);
+  --bs-pagination-focus-box-shadow: 0 0 0 .2rem var(--sp-accent-soft);
+  --bs-pagination-active-bg: var(--sp-accent-soft);
+  --bs-pagination-active-border-color: var(--sp-accent);
+  --bs-pagination-active-color: var(--sp-accent-strong);
+  --bs-pagination-disabled-bg: var(--sp-surface);
+  --bs-pagination-disabled-color: var(--sp-text-faint);
+  --bs-pagination-disabled-border-color: var(--sp-edge);
+  --bs-pagination-border-radius: var(--sp-radius);
+  font: 600 .85rem var(--sp-font-display);
+}
+.progress {
+  --bs-progress-bg: color-mix(in srgb, var(--hue, var(--sp-accent)) 18%, transparent);
+  --bs-progress-bar-bg: var(--hue, var(--sp-accent));
+  --bs-progress-height: 6px;
+  --bs-progress-border-radius: var(--sp-radius-pill);
+}
+.list-group {
+  --bs-list-group-bg: var(--sp-surface-row);
+  --bs-list-group-border-color: var(--sp-edge);
+  --bs-list-group-color: var(--sp-text);
+  --bs-list-group-action-hover-bg: var(--sp-surface-hover);
+  --bs-list-group-action-hover-color: var(--sp-text);
+  --bs-list-group-active-bg: var(--sp-accent-soft);
+  --bs-list-group-active-border-color: var(--sp-accent);
+  --bs-list-group-active-color: var(--sp-accent-strong);
+}
+.card {
+  --bs-card-bg: var(--sp-surface-raised);
+  --bs-card-border-color: var(--sp-edge);
+  --bs-card-cap-bg: var(--sp-surface-row);
+  --bs-card-color: var(--sp-text);
+}
+.nav-tabs {
+  --bs-nav-tabs-border-color: var(--sp-edge);
+  --bs-nav-tabs-link-hover-border-color: var(--sp-edge) var(--sp-edge) transparent;
+  --bs-nav-tabs-link-active-color: var(--sp-accent-strong);
+  --bs-nav-tabs-link-active-bg: var(--sp-accent-wash);
+  --bs-nav-tabs-link-active-border-color: var(--sp-accent-half) var(--sp-accent-half) transparent;
+}
+.nav-pills {
+  --bs-nav-pills-link-active-bg: var(--sp-accent-soft);
+  --bs-nav-pills-link-active-color: var(--sp-accent-strong);
+}
+.nav-link { color: var(--sp-text-muted); }
+.nav-link:hover, .nav-link:focus { color: var(--sp-text); }
+.btn-close:focus { box-shadow: 0 0 0 .2rem var(--sp-accent-soft); }
+
+/* =========================================================================================
+   3. Base
+   ========================================================================================= */
+html { scroll-behavior: smooth; }
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--sp-bg);
+  color: var(--sp-text);
+  font-family: var(--sp-font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+/* The game world behind the menus: an optional image under a dark glaze, lit from the top left as CS2's menu is. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(1400px 820px at 0% 0%, var(--sp-bg-lift), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--sp-bg) 78%, transparent), var(--sp-bg) 85%),
+    var(--sp-bg-image) center / cover no-repeat,
+    var(--sp-bg);
+}
+main { flex: 1 0 auto; }
+::selection { background: var(--sp-accent-dim); color: #fff; }
+:focus-visible { outline: 2px solid var(--sp-accent); outline-offset: 2px; }
+* { scrollbar-width: thin; scrollbar-color: var(--sp-edge) transparent; }
+
+h1, h2, h3, h4, h5, h6,
+.sp-display {
+  font-family: var(--sp-font-display);
+  font-weight: 700;
+  letter-spacing: var(--sp-track-title);
+}
+h1, h2 { text-transform: uppercase; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--sp-font-mono); font-size: .9em; }
+.upper { text-transform: uppercase; letter-spacing: var(--sp-track-caps); }
+.text-accent { color: var(--sp-accent) !important; }
+.text-accent-strong { color: var(--sp-accent-strong) !important; }
+.text-gold { color: var(--sp-gold) !important; }
+.text-gold-deep { color: var(--sp-gold-deep) !important; }
+.text-info2 { color: var(--sp-info) !important; }
+.text-success2 { color: var(--sp-success) !important; }
+.text-danger2 { color: var(--sp-danger) !important; }
+.text-muted2 { color: var(--sp-text-muted) !important; }
+.text-faint { color: var(--sp-text-faint) !important; }
+.text-hue { color: var(--hue) !important; }
+.bg-surface { background: var(--sp-surface) !important; }
+.bg-row { background: var(--sp-surface-row) !important; }
+.border-edge { border-color: var(--sp-edge) !important; }
+.fs-7 { font-size: .8125rem; }
+.fs-8 { font-size: .72rem; }
+.lh-1 { line-height: 1; }
+.min-w-0 { min-width: 0; }
+.text-truncate-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sp-container { width: 100%; max-width: 1360px; margin: 0 auto; padding: 0 1.25rem; }
+.sp-cols { display: grid; gap: .5rem; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); }
+
+/* =========================================================================================
+   4. Top bar and footer
+   ========================================================================================= */
+.sp-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+  background: color-mix(in srgb, var(--sp-surface) 82%, transparent);
+  backdrop-filter: blur(12px) saturate(1.15);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15);
+  border-bottom: 1px solid var(--sp-edge-soft);
+}
+.sp-topbar-inner { display: flex; align-items: stretch; gap: 1rem; height: 60px; }
+.sp-topbar-inner > nav { display: flex; align-items: center; min-width: 0; }
+.sp-brand { display: flex; align-items: center; gap: .65rem; color: var(--sp-text); padding-right: .5rem; }
+.sp-brand:hover { color: var(--sp-text); }
+.sp-brand-mark { width: 30px; height: 30px; flex-shrink: 0; }
+.sp-brand-name { font: 700 1.3rem/1 var(--sp-font-display); letter-spacing: .03em; text-transform: uppercase; }
+.sp-brand-sub { font: 600 .66rem/1 var(--sp-font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-accent); }
+.sp-nav { display: flex; align-items: center; gap: .15rem; margin: 0; padding: 0; list-style: none; }
+/* CS2 marks the open menu by colouring its label; the soft plate keeps it findable at a glance. */
+.sp-navlink {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  height: 38px;
+  padding: 0 .75rem;
+  border-radius: var(--sp-radius);
+  color: var(--sp-text-muted);
+  font: 600 .9rem/1 var(--sp-font-display);
+  letter-spacing: var(--sp-track-caps);
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color var(--sp-fast), background-color var(--sp-fast);
+}
+.sp-navlink .bi { font-size: 1rem; color: var(--sp-text-faint); transition: color var(--sp-fast); }
+.sp-navlink:hover { color: var(--sp-text); background: var(--sp-hover-wash); }
+.sp-navlink:hover .bi { color: var(--sp-text); }
+.sp-navlink.active { color: var(--sp-accent-strong); background: var(--sp-accent-wash); }
+.sp-navlink.active .bi { color: var(--sp-accent); }
+.sp-search { position: relative; align-self: center; width: 250px; }
+.sp-search .bi { position: absolute; left: .8rem; top: 50%; transform: translateY(-50%); color: var(--sp-text-faint); }
+.sp-search .form-control { padding-left: 2.2rem; height: 36px; font-size: .85rem; border-radius: var(--sp-radius-pill); background: color-mix(in srgb, var(--sp-surface) 70%, transparent); }
+.sp-user { display: flex; align-items: center; gap: .55rem; padding: .25rem .65rem .25rem .3rem; border: 1px solid transparent; border-radius: var(--sp-radius-pill); color: var(--sp-text); }
+.sp-user:hover { background: var(--sp-surface-hover); border-color: var(--sp-edge); color: var(--sp-text); }
+.sp-user-name { font: 600 .92rem/1.1 var(--sp-font-display); letter-spacing: .01em; }
+.sp-user-role { font: 600 .66rem/1 var(--sp-font-display); letter-spacing: var(--sp-track-caps); text-transform: uppercase; }
+
+.sp-footer {
+  margin-top: 3rem;
+  border-top: 1px solid var(--sp-edge-soft);
+  background: color-mix(in srgb, var(--sp-surface) 80%, transparent);
+  color: var(--sp-text-faint);
+  font-size: .82rem;
+}
+.sp-footer a { color: var(--sp-text-muted); }
+.sp-footer a:hover { color: var(--sp-text); }
+
+/* =========================================================================================
+   5. Shell (CustomHUD's locker) - a dark glass panel over the slate page, like CS2's menu content area
+   ========================================================================================= */
+.sp-shell {
+  position: relative;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--sp-surface-raised) var(--sp-shell-opacity), transparent),
+    color-mix(in srgb, var(--sp-surface) var(--sp-shell-opacity), transparent));
+  border: 1px solid var(--sp-edge-soft);
+  border-radius: var(--sp-radius-lg);
+  box-shadow: var(--sp-shadow-drop), var(--sp-sheen);
+}
+.sp-shell-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: .75rem 1.5rem;
+  padding: 1.1rem 1.4rem .85rem;
+}
+.sp-eyebrow {
+  display: block;
+  font: 600 .74rem/1.2 var(--sp-font-display);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--sp-accent);
+}
+.sp-title {
+  margin: .2rem 0 0;
+  font: 700 clamp(1.5rem, 1.1rem + 1.1vw, 2.05rem)/1.05 var(--sp-font-display);
+  letter-spacing: var(--sp-track-title);
+  text-transform: uppercase;
+  color: var(--sp-text);
+}
+.sp-crumb { color: var(--sp-text-faint); font-weight: 600; }
+.sp-crumb .bi { font-size: .8em; margin: 0 .25rem; }
+.sp-rule { height: 1px; margin: 0 1.4rem; background: linear-gradient(90deg, var(--sp-edge), transparent 85%); }
+.sp-shell-body { padding: 1.2rem 1.4rem 1.4rem; }
+.sp-shell-foot {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: .75rem;
+  padding: .55rem .75rem;
+  border-top: 1px solid var(--sp-edge-soft);
+  border-radius: 0 0 var(--sp-radius-lg) var(--sp-radius-lg);
+  background: color-mix(in srgb, var(--sp-surface) 60%, transparent);
+}
+.sp-hint { font: 600 .74rem/1.2 var(--sp-font-display); letter-spacing: var(--sp-track-caps); text-transform: uppercase; color: var(--sp-text-faint); text-align: center; }
+.sp-section-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 .7rem;
+  font: 600 .82rem/1.2 var(--sp-font-display);
+  letter-spacing: var(--sp-track-caps);
+  text-transform: uppercase;
+  color: var(--sp-text-muted);
+}
+.sp-section-title small { font: 400 .76rem/1.2 var(--sp-font-body); letter-spacing: 0; text-transform: none; color: var(--sp-text-faint); }
+
+/* Locker: sidebar + page. Entries read like CS2's sidebar: plain labels until hovered or chosen. */
+.sp-locker { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+.sp-side { display: flex; flex-direction: column; gap: .2rem; position: sticky; top: 76px; }
+.sp-side-item {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  width: 100%;
+  padding: .55rem .75rem;
+  background: transparent;
+  border: 0;
+  border-radius: var(--sp-radius);
+  color: var(--sp-text-muted);
+  font: 600 .95rem/1.15 var(--sp-font-display);
+  letter-spacing: .01em;
+  text-align: left;
+  transition: background-color var(--sp-fast), color var(--sp-fast);
+}
+.sp-side-item .bi { font-size: 1rem; color: var(--sp-text-faint); transition: color var(--sp-fast); }
+.sp-side-item:hover { background: var(--sp-hover-wash); color: var(--sp-text); }
+.sp-side-item:hover .bi { color: var(--sp-text); }
+.sp-side-item.active { background: var(--sp-accent-soft); color: var(--sp-accent-strong); }
+.sp-side-item.active .bi { color: var(--sp-accent); }
+.sp-side-item .count { margin-left: auto; font: 500 .75rem var(--sp-font-mono); color: var(--sp-text-faint); }
+.sp-side-item.active .count { color: var(--sp-accent-strong); }
+.sp-side-item.locked { opacity: .45; }
+.sp-side-item.locked::after { content: "\F47A"; font-family: "bootstrap-icons"; margin-left: auto; font-size: .8rem; color: var(--sp-text-faint); }
+.sp-side-sep { height: 1px; margin: .4rem 0; background: var(--sp-edge-soft); }
+.sp-side-label { margin: .6rem 0 .2rem; padding: 0 .75rem; font: 600 .7rem var(--sp-font-display); letter-spacing: var(--sp-track-caps); text-transform: uppercase; color: var(--sp-text-faint); }
+
+/* Tabs: uppercase labels on a faint plate, as CS2's; the open one takes the accent tint. */
+.sp-tabs { display: flex; flex-wrap: wrap; gap: .35rem; }
+.sp-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  padding: .4rem .8rem;
+  background: color-mix(in srgb, var(--sp-text) 5%, transparent);
+  border: 1px solid transparent;
+  border-radius: var(--sp-radius);
+  color: var(--sp-text-muted);
+  font: 600 .82rem/1.1 var(--sp-font-display);
+  letter-spacing: var(--sp-track-caps);
+  text-transform: uppercase;
+  transition: background-color var(--sp-fast), color var(--sp-fast), border-color var(--sp-fast);
+}
+.sp-tab:hover { color: var(--sp-text); background: color-mix(in srgb, var(--sp-text) 10%, transparent); }
+.sp-tab.active { background: var(--sp-accent-soft); border-color: var(--sp-accent-dim); color: var(--sp-accent-strong); }
+.sp-tab .count { font: 500 .7rem var(--sp-font-mono); letter-spacing: 0; color: var(--sp-text-faint); }
+.sp-tab.active .count { color: var(--sp-accent-strong); }
+.sp-tab:disabled, .sp-tab.disabled { opacity: .4; pointer-events: none; }
+
+/* =========================================================================================
+   6. Surfaces: panel, tile, rows, tables
+   ========================================================================================= */
+.sp-panel {
+  background: color-mix(in srgb, var(--sp-surface-row) 88%, transparent);
+  border: 1px solid var(--sp-edge-soft);
+  border-radius: var(--sp-radius-lg);
+  padding: 1rem 1.1rem;
+}
+.sp-panel.wash { --hue: var(--sp-accent); background: linear-gradient(180deg, color-mix(in srgb, var(--hue) 9%, var(--sp-surface-row)), var(--sp-surface-row)); }
+.sp-panel.featured {
+  --hue: var(--sp-gold);
+  border-color: color-mix(in srgb, var(--hue) 45%, transparent);
+  background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--hue) 14%, transparent), transparent 70%), var(--sp-surface-row);
+}
+.sp-panel.team { border-color: color-mix(in srgb, var(--hue) 32%, transparent); background: linear-gradient(90deg, color-mix(in srgb, var(--hue) 13%, transparent), transparent 70%), var(--sp-surface-row); }
+.sp-panel.empty { background: transparent; border-style: dashed; color: var(--sp-text-faint); text-align: center; }
+
+/* Tile: a card in a grid, CS2's inventory tile. Hover lifts it; a chosen tile keeps an accent outline. */
+.sp-tile {
+  --hue: var(--sp-text-faint);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: .7rem .7rem .8rem;
+  background: linear-gradient(180deg, var(--sp-tile), var(--sp-tile-deep));
+  border: 1px solid var(--sp-edge-soft);
+  border-radius: var(--sp-radius);
+  color: var(--sp-text);
+  text-align: center;
+  overflow: hidden;
+  isolation: isolate;
+  cursor: pointer;
+  transition: transform var(--sp-fast) var(--sp-ease), border-color var(--sp-fast), box-shadow var(--sp-fast), background-color var(--sp-fast);
+}
+.sp-tile:hover {
+  color: var(--sp-text);
+  border-color: color-mix(in srgb, var(--sp-text) 24%, transparent);
+  box-shadow: var(--sp-shadow-soft);
+  transform: translateY(-2px);
+}
+.sp-tile.static { cursor: default; }
+.sp-tile.static:hover { transform: none; border-color: var(--sp-edge-soft); box-shadow: none; }
+.sp-tile.chosen { box-shadow: inset 0 0 0 1px var(--sp-accent); border-color: var(--sp-accent); }
+.sp-tile.chosen .sp-tile-name { color: var(--sp-accent-strong); }
+/* The rarity glow rising from the foot, and a crisp rarity line (no shadow on thin bars). */
+.sp-tile.rarity::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 72%;
+  z-index: -1;
+  background: linear-gradient(0deg, color-mix(in srgb, var(--hue) 30%, transparent), transparent);
+}
+.sp-tile.rarity::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--hue); }
+.sp-tile-thumb { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 10; margin: -.1rem 0 .45rem; }
+/* Absolute, so a portrait image (an agent) is contained by the box instead of stretching the tile. */
+.sp-tile-thumb img { position: absolute; inset: 0; margin: auto; max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 10px 12px rgba(0, 0, 0, .6)); }
+.sp-tile-type { font: 600 .68rem/1.2 var(--sp-font-display); letter-spacing: var(--sp-track-caps); text-transform: uppercase; color: var(--hue); }
+.sp-tile-name { font: 600 .9rem/1.2 var(--sp-font-display); letter-spacing: .01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-tile-value { font: 600 .82rem/1.2 var(--sp-font-display); letter-spacing: .02em; color: var(--sp-gold); margin-top: .15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-tile .sp-corner { position: absolute; top: .45rem; right: .45rem; z-index: 2; }
+.sp-tile .sp-corner-l { position: absolute; top: .45rem; left: .45rem; z-index: 2; }
+.sp-tile.locked { cursor: not-allowed; }
+.sp-tile.locked > :not(.sp-lock) { opacity: .38; }
+.sp-tile.locked:hover { transform: none; box-shadow: none; border-color: var(--sp-edge-soft); }
+.sp-lock {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .3rem;
+  color: var(--sp-text-muted);
+  font: 600 .7rem var(--sp-font-display);
+  letter-spacing: var(--sp-track-caps);
+  text-transform: uppercase;
+}
+.sp-lock .bi { font-size: 1.2rem; }
+.sp-grid { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fill, minmax(var(--min, 150px), 1fr)); }
+
+/* Rows and tables: separate bars on the row surface; quiet column heads. */
+.sp-table { width: 100%; border-collapse: separate; border-spacing: 0 3px; font-size: .9rem; }
+.sp-table thead th {
+  padding: .45rem .65rem;
+  border: 0;
+  font: 600 .72rem/1.2 var(--sp-font-display);
+  letter-spacing: var(--sp-track-caps);
+  text-transform: uppercase;
+  color: var(--sp-text-faint);
+  white-space: nowrap;
+  text-align: left;
+}
+.sp-table thead th.sortable { cursor: pointer; }
+.sp-table thead th.sortable:hover, .sp-table thead th.sorted { color: var(--sp-text); }
+.sp-table thead th.sorted::after { content: " \25BE"; }
+.sp-table tbody tr { background: color-mix(in srgb, var(--sp-surface-row) 92%, transparent); transition: background-color var(--sp-fast); }
+.sp-table tbody td { padding: .55rem .65rem; vertical-align: middle; border: 0; }
+.sp-table tbody td:first-child { border-radius: var(--sp-radius) 0 0 var(--sp-radius); }
+.sp-table tbody td:last-child { border-radius: 0 var(--sp-radius) var(--sp-radius) 0; }
+.sp-table.hover tbody tr:hover { background: var(--sp-surface-hover); cursor: pointer; }
+.sp-table tbody tr.chosen { background: linear-gradient(90deg, var(--sp-accent-soft), color-mix(in srgb, var(--sp-surface-row) 92%, transparent) 70%); }
+.sp-table tbody tr.muted td { color: var(--sp-text-faint); }
+.sp-table .pos { width: 3.25rem; font: 700 1rem var(--sp-font-display); color: var(--sp-text-faint); font-variant-numeric: tabular-nums; }
+.sp-table .r { text-align: right; font-variant-numeric: tabular-nums; }
+.sp-table .c { text-align: center; }
+.sp-table.compact tbody td { padding: .38rem .6rem; }
+.sp-table-wrap { overflow-x: auto; margin: -3px 0; }
+
+.sp-rows { display: flex; flex-direction: column; gap: 3px; }
+.sp-row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  min-height: 46px;
+  padding: .5rem .75rem;
+  background: color-mix(in srgb, var(--sp-surface-row) 92%, transparent);
+  border-radius: var(--sp-radius);
+  color: var(--sp-text);
+}
+a.sp-row:hover, button.sp-row:hover, .sp-row.hover:hover { background: var(--sp-surface-hover); color: var(--sp-text); }
+.sp-row.chosen, .sp-row.chosen:hover { background: linear-gradient(90deg, var(--sp-accent-soft), color-mix(in srgb, var(--sp-surface-row) 92%, transparent) 75%); box-shadow: inset 0 0 0 1px var(--sp-accent-dim); }
+.sp-row .end { margin-left: auto; text-align: right; }
+.sp-row-sub { display: block; font-size: .78rem; color: var(--sp-text-faint); }
+
+/* Key/value field list (CustomHUD's inspect card fields). */
+.sp-fields { display: grid; grid-template-columns: minmax(120px, 40%) 1fr; border-top: 1px solid var(--sp-edge-soft); }
+.sp-fields > dt, .sp-fields > dd { margin: 0; padding: .55rem .25rem; border-bottom: 1px solid var(--sp-edge-soft); }
+.sp-fields > dt { font: 500 .82rem/1.5 var(--sp-font-body); color: var(--sp-text-faint); }
+.sp-fields > dd { color: var(--sp-text); overflow-wrap: anywhere; }
+
+/* =========================================================================================
+   7. Small parts
+   ========================================================================================= */
+/* Pills are soft: a Soft fill, a Dim edge and the hue as text, in sentence case. Only .solid is the hue itself. */
+.sp-pill {
+  --hue: var(--sp-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .2rem .6rem;
+  background: color-mix(in srgb, var(--hue) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--hue) 32%, transparent);
+  border-radius: var(--sp-radius-pill);
+  color: var(--hue);
+  font: 600 .74rem/1.2 var(--sp-font-body);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.sp-pill.solid { background: var(--hue); border-color: var(--hue); color: var(--sp-text-ink); }
+.sp-pill.lg { padding: .28rem .75rem; font-size: .8rem; }
+.sp-pill .bi { font-size: .9em; }
+.sp-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--hue, currentColor); flex-shrink: 0; }
+.sp-dot.live { box-shadow: 0 0 0 3px color-mix(in srgb, var(--hue, currentColor) 25%, transparent); animation: sp-pulse 2.4s ease-in-out infinite; }
+@keyframes sp-pulse { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--hue, currentColor) 0%, transparent); } }
+
+/* Badge: a small boxed tag on its own ground, uppercase like CS2's, so it reads on any row. */
+.sp-badge {
+  --hue: var(--sp-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .12rem .45rem;
+  background: color-mix(in srgb, var(--hue) 10%, var(--sp-surface));
+  border: 1px solid color-mix(in srgb, var(--hue) 45%, transparent);
+  border-radius: var(--sp-radius-sm);
+  color: var(--hue);
+  font: 600 .68rem/1.2 var(--sp-font-display);
+  letter-spacing: var(--sp-track-caps);
+  text-transform: uppercase;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* Chip: a control sized to its text (filters, permission tokens). */
+.sp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .26rem .7rem;
+  background: var(--sp-surface-row);
+  border: 1px solid var(--sp-edge);
+  border-radius: var(--sp-radius-pill);
+  color: var(--sp-text-muted);
+  font: 500 .8rem/1.2 var(--sp-font-body);
+  transition: border-color var(--sp-fast), color var(--sp-fast), background-color var(--sp-fast);
+}
+button.sp-chip:hover, a.sp-chip:hover { border-color: color-mix(in srgb, var(--sp-text) 24%, transparent); color: var(--sp-text); }
+.sp-chip.active { background: var(--sp-accent-soft); border-color: var(--sp-accent-dim); color: var(--sp-accent-strong); }
+.sp-chip .x { color: var(--sp-text-faint); cursor: pointer; }
+.sp-chip .x:hover { color: var(--sp-danger); }
+.sp-chip.code { font-family: var(--sp-font-mono); font-size: .76rem; }
+
+/* Keycap for in-game commands and keys. */
+.sp-key {
+  display: inline-block;
+  padding: .05rem .4rem;
+  background: var(--sp-surface-row);
+  border: 1px solid var(--sp-edge);
+  border-bottom-width: 2px;
+  border-radius: var(--sp-radius-sm);
+  color: var(--sp-text);
+  font: 500 .76rem/1.4 var(--sp-font-mono);
+  white-space: nowrap;
+}
+
+/* Meter: a thin rounded track in the hue's Dim, filled in its Base. */
+.sp-meter { --hue: var(--sp-info); position: relative; height: 4px; background: color-mix(in srgb, var(--hue) 22%, transparent); border-radius: var(--sp-radius-pill); overflow: hidden; }
+.sp-meter > i { position: absolute; inset: 0 auto 0 0; width: var(--v, 0%); background: var(--hue); border-radius: inherit; }
+.sp-meter.lg { height: 6px; }
+
+/* Stat: a value in display digits over a muted caption. */
+.sp-stat { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+.sp-stat-value { font: 700 1.6rem/1 var(--sp-font-display); letter-spacing: .01em; font-variant-numeric: tabular-nums; color: var(--sp-text); }
+.sp-stat-value small { font-size: .62em; color: var(--sp-text-muted); margin-left: .15rem; }
+.sp-stat-label { font: 600 .7rem/1.2 var(--sp-font-display); letter-spacing: var(--sp-track-caps); text-transform: uppercase; color: var(--sp-text-faint); }
+.sp-stat-sub { font-size: .76rem; color: var(--sp-text-muted); }
+.sp-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .6rem; }
+.sp-kpi {
+  --hue: var(--sp-accent);
+  display: flex;
+  align-items: center;
+  gap: .85rem;
+  padding: .8rem 1rem;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--hue) 8%, transparent), transparent 70%), color-mix(in srgb, var(--sp-surface-row) 92%, transparent);
+  border: 1px solid var(--sp-edge-soft);
+  border-radius: var(--sp-radius-lg);
+}
+.sp-kpi > .bi { display: grid; place-items: center; flex-shrink: 0; width: 2.6rem; height: 2.6rem; border-radius: 50%; background: color-mix(in srgb, var(--hue) 16%, transparent); font-size: 1.2rem; color: var(--hue); }
+
+/* Avatar: a circle, initials on the player's rarity tint until a Steam avatar is cached. */
+.sp-avatar {
+  --hue: var(--sp-rarity-3);
+  --size: 2.25rem;
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: var(--size);
+  height: var(--size);
+  flex-shrink: 0;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--hue) 50%, var(--sp-surface-row)), color-mix(in srgb, var(--hue) 14%, var(--sp-surface)));
+  border: 1px solid color-mix(in srgb, var(--hue) 45%, transparent);
+  border-radius: 50%;
+  color: #fff;
+  font: 700 calc(var(--size) * .42)/1 var(--sp-font-display);
+  text-transform: uppercase;
+}
+/* The image rounds itself: clipping the avatar would cut off the status dot on its rim. */
+.sp-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.sp-avatar.sm { --size: 1.6rem; }
+.sp-avatar.lg { --size: 3.25rem; }
+.sp-avatar.xl { --size: 6rem; border-width: 2px; }
+.sp-avatar .status { position: absolute; right: 0; bottom: 0; width: 28%; height: 28%; min-width: 8px; min-height: 8px; background: var(--sp-success); border: 2px solid var(--sp-surface); border-radius: 50%; }
+
+.sp-player { display: inline-flex; align-items: center; gap: .6rem; min-width: 0; color: var(--sp-text); }
+a.sp-player:hover { color: var(--sp-accent-strong); }
+.sp-player-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-player-sub { display: block; font: 500 .72rem var(--sp-font-mono); color: var(--sp-text-faint); }
+
+.sp-copy { border: 0; background: none; padding: 0 .2rem; color: var(--sp-text-faint); }
+.sp-copy:hover { color: var(--sp-accent); }
+
+/* =========================================================================================
+   8. Game parts
+   ========================================================================================= */
+/* CS Rating badge (Premier): a slanted plate with a double band stripe, thousands larger than the rest. */
+.sp-rating {
+  --hue: var(--sp-rating-0);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 1.85em;
+  padding: 0 .95em 0 1.75em;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--hue) 30%, var(--sp-surface)), color-mix(in srgb, var(--hue) 9%, var(--sp-surface)) 85%);
+  clip-path: polygon(.5em 0, 100% 0, calc(100% - .5em) 100%, 0 100%);
+  color: var(--hue);
+  font: italic 700 1rem/1 var(--sp-font-display);
+  letter-spacing: .02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.sp-rating::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: .55em;
+  width: .7em;
+  background: linear-gradient(90deg, var(--hue) 0 .17em, transparent .17em .36em, var(--hue) .36em .53em, transparent .53em);
+  transform: skewX(-16deg);
+}
+.sp-rating b { font-size: 1.22em; font-weight: 700; }
+.sp-rating small { font-size: .86em; opacity: .92; }
+.sp-rating.sm { font-size: .82rem; }
+.sp-rating.lg { font-size: 1.6rem; }
+.sp-rating.xl { font-size: 2.6rem; }
+.sp-rating.rb-0 { --hue: var(--sp-rating-0); } .sp-rating.rb-1 { --hue: var(--sp-rating-1); } .sp-rating.rb-2 { --hue: var(--sp-rating-2); }
+.sp-rating.rb-3 { --hue: var(--sp-rating-3); } .sp-rating.rb-4 { --hue: var(--sp-rating-4); } .sp-rating.rb-5 { --hue: var(--sp-rating-5); }
+.sp-rating.rb-6 { --hue: var(--sp-rating-6); }
+
+/* Level ring (Ranks_EloPoints' 10-band ladder): the arc fills to the level. */
+.sp-level {
+  --hue: var(--sp-level-1);
+  --size: 2.1rem;
+  --lvl: 1;
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: var(--size);
+  height: var(--size);
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: conic-gradient(var(--hue) calc(var(--lvl) * 10%), color-mix(in srgb, var(--hue) 18%, transparent) 0);
+  color: var(--hue);
+  font: 700 calc(var(--size) * .45)/1 var(--sp-font-display);
+  vertical-align: middle;
+}
+.sp-level::before { content: ""; position: absolute; inset: calc(var(--size) * .1); border-radius: 50%; background: var(--sp-surface); }
+.sp-level > span { position: relative; }
+.sp-level.lg { --size: 3.6rem; }
+.sp-level.lv-1 { --hue: var(--sp-level-1); }
+.sp-level.lv-2 { --hue: var(--sp-level-2); }
+.sp-level.lv-4 { --hue: var(--sp-level-4); }
+.sp-level.lv-8 { --hue: var(--sp-level-8); }
+.sp-level.lv-10 { --hue: var(--sp-level-10); }
+
+/* Rank road: every tier of the ladder, the player's own one chosen, the rest locked. */
+.sp-road { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(118px, 1fr); gap: .5rem; overflow-x: auto; padding: .75rem 0 .25rem; }
+.sp-road-step {
+  --hue: var(--sp-rating-0);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .55rem;
+  padding: 1.1rem .5rem .8rem;
+  background: color-mix(in srgb, var(--sp-surface-row) 85%, transparent);
+  border: 1px solid var(--sp-edge-soft);
+  border-radius: var(--sp-radius-lg);
+  font: 600 .74rem var(--sp-font-display);
+  letter-spacing: var(--sp-track-caps);
+  text-transform: uppercase;
+  color: var(--hue);
+}
+.sp-road-step .lock { color: var(--sp-text-faint); font-size: .8rem; }
+.sp-road-step.reached { background: linear-gradient(0deg, color-mix(in srgb, var(--hue) 14%, transparent), transparent), var(--sp-surface-row); }
+.sp-road-step.current { background: linear-gradient(180deg, var(--sp-accent-soft), var(--sp-accent-wash)); border-color: var(--sp-accent-half); color: var(--sp-text); }
+.sp-road-step .you { position: absolute; top: -.6rem; padding: .1rem .5rem; background: var(--sp-accent); border-radius: var(--sp-radius-pill); color: var(--sp-on-accent); font-size: .62rem; letter-spacing: var(--sp-track-caps); }
+
+/* Map art: a map without a picture gets its prefix's ground under CS2's menu dots. */
+.sp-map {
+  --base: var(--sp-map-other);
+  --deep: var(--sp-map-other-deep);
+  position: relative;
+  aspect-ratio: 16 / 7;
+  overflow: hidden;
+  background:
+    radial-gradient(rgba(255, 255, 255, .07) 1px, transparent 1.6px) 0 0 / 14px 14px,
+    radial-gradient(120% 120% at 18% 0%, var(--base), var(--deep) 75%);
+}
+.sp-map.awp { --base: var(--sp-map-awp); --deep: var(--sp-map-awp-deep); }
+.sp-map.aim { --base: var(--sp-map-aim); --deep: var(--sp-map-aim-deep); }
+.sp-map.surf { --base: var(--sp-map-surf); --deep: var(--sp-map-surf-deep); }
+.sp-map img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.sp-map::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, color-mix(in srgb, var(--sp-tile-deep) 96%, transparent) 0%, color-mix(in srgb, var(--sp-tile-deep) 25%, transparent) 55%, transparent 80%); }
+.sp-map-name { position: absolute; left: .85rem; bottom: .55rem; z-index: 1; font: 700 1.35rem/1 var(--sp-font-display); letter-spacing: .02em; text-transform: uppercase; color: #fff; }
+.sp-map-code { display: block; margin-top: .2rem; font: 500 .7rem var(--sp-font-mono); letter-spacing: 0; text-transform: none; color: var(--sp-text-muted); }
+.sp-map .sp-corner { position: absolute; top: .55rem; right: .55rem; z-index: 1; }
+.sp-map .sp-corner-l { position: absolute; top: .55rem; left: .55rem; z-index: 1; }
+
+/* Wear track: the five exteriors at 0.07 / 0.15 / 0.38 / 0.45, lit up to the value, outside the skin's range hatched. */
+.sp-wear { --val: .5; --min: 0; --max: 1; position: relative; height: 10px; margin: .6rem 0 .3rem; }
+.sp-wear::before, .sp-wear .lit {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    var(--sp-wear-fn) 0 7%, var(--sp-wear-mw) 7% 15%, var(--sp-wear-ft) 15% 38%,
+    var(--sp-wear-ww) 38% 45%, var(--sp-wear-bs) 45% 100%);
+}
+.sp-wear::before { opacity: .28; }
+.sp-wear::before, .sp-wear .lit { border-radius: var(--sp-radius-pill); }
+.sp-wear .lit { clip-path: inset(0 calc(100% - var(--val) * 100%) 0 0); }
+.sp-wear .out-lo, .sp-wear .out-hi { position: absolute; z-index: 1; top: -2px; bottom: -2px; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--sp-surface) 85%, transparent) 0 3px, color-mix(in srgb, var(--sp-surface) 55%, transparent) 3px 6px); }
+.sp-wear .out-lo { left: 0; width: calc(var(--min) * 100%); border-radius: var(--sp-radius-pill) 0 0 var(--sp-radius-pill); }
+.sp-wear .out-hi { right: 0; width: calc((1 - var(--max)) * 100%); border-radius: 0 var(--sp-radius-pill) var(--sp-radius-pill) 0; }
+.sp-wear .knob { position: absolute; z-index: 2; top: -4px; bottom: -4px; left: calc(var(--val) * 100%); width: 4px; margin-left: -2px; background: #fff; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .6); }
+.sp-wear input[type="range"] { position: absolute; z-index: 3; inset: -8px 0; width: 100%; opacity: 0; cursor: pointer; }
+.sp-wear-legend { display: grid; grid-template-columns: 7fr 8fr 23fr 7fr 55fr; font: 600 .62rem var(--sp-font-display); letter-spacing: .04em; color: var(--sp-text-faint); }
+.sp-wear-legend span { overflow: hidden; white-space: nowrap; }
+
+/* Sticker / charm slot. */
+.sp-slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  background: var(--sp-surface);
+  border: 1px dashed var(--sp-edge);
+  border-radius: var(--sp-radius);
+  color: var(--sp-text-faint);
+  transition: border-color var(--sp-fast);
+}
+.sp-slot:hover { border-color: var(--sp-accent-half); color: var(--sp-accent); }
+.sp-slot.filled { border-style: solid; background: radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--hue, var(--sp-edge)) 22%, transparent), transparent 70%), var(--sp-surface); }
+.sp-slot img { width: 82%; height: 82%; object-fit: contain; }
+.sp-slot .n { position: absolute; top: 3px; left: 5px; font: 600 .6rem var(--sp-font-mono); color: var(--sp-text-faint); }
+
+/* Hitbox figure (Ranks_WeaponStats hit groups): regions lit by their share of hits. */
+.sp-hitbox svg { width: 100%; max-width: 190px; height: auto; display: block; margin: 0 auto; }
+.sp-hitbox .zone { fill: color-mix(in srgb, var(--sp-info) calc(var(--share, 0) * 2.4%), var(--sp-surface-hover)); stroke: var(--sp-edge); stroke-width: 1; transition: fill var(--sp-med); }
+.sp-hitbox .zone:hover { stroke: var(--sp-accent); }
+
+/* Podium. */
+.sp-podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: .6rem; align-items: end; }
+.sp-podium-card {
+  --hue: var(--sp-rarity-1);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .5rem;
+  padding: 1.1rem .75rem 1rem;
+  background: radial-gradient(110% 80% at 50% 0%, color-mix(in srgb, var(--hue) 18%, transparent), transparent 70%), color-mix(in srgb, var(--sp-surface-row) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--hue) 40%, var(--sp-edge));
+  border-radius: var(--sp-radius-lg);
+  text-align: center;
+  color: var(--sp-text);
+}
+.sp-podium-card:hover { color: var(--sp-text); border-color: var(--hue); }
+.sp-podium-card.first { --hue: var(--sp-gold); padding-top: 1.6rem; }
+.sp-podium-card.third { --hue: var(--sp-rarity-8); }
+.sp-podium-place { position: absolute; top: .45rem; left: .6rem; font: 700 1.4rem/1 var(--sp-font-display); color: var(--hue); }
+.sp-podium-card .bi-trophy-fill { color: var(--hue); }
+
+/* Server card status edge. */
+.sp-server { display: flex; flex-direction: column; overflow: hidden; padding: 0; text-align: left; cursor: default; }
+.sp-server:hover { transform: none; }
+.sp-server .body { padding: .85rem .95rem 1rem; display: flex; flex-direction: column; gap: .65rem; flex: 1; }
+.sp-server.offline .sp-map { filter: grayscale(.9) brightness(.6); }
+.sp-hostname { font: 600 1.02rem/1.25 var(--sp-font-display); letter-spacing: .01em; color: var(--sp-text); }
+.sp-map.mini { width: 86px; aspect-ratio: 16 / 9; flex-shrink: 0; border-radius: var(--sp-radius-sm); }
+.sp-map.mini .sp-map-name { left: .4rem; bottom: .25rem; font-size: .72rem; }
+
+/* Hero: the landing page's banner - a soft accent light from the top left, CS2's menu dots fading in on the right. */
+.sp-hero {
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  padding: 2.4rem 2.2rem 2rem;
+  background:
+    radial-gradient(90% 120% at 0% 0%, color-mix(in srgb, var(--sp-accent) 12%, transparent), transparent 62%),
+    linear-gradient(180deg, color-mix(in srgb, var(--sp-surface-raised) 90%, transparent), color-mix(in srgb, var(--sp-surface) 92%, transparent));
+  border: 1px solid var(--sp-edge-soft);
+  border-radius: var(--sp-radius-lg);
+  box-shadow: var(--sp-shadow-drop), var(--sp-sheen);
+}
+.sp-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(color-mix(in srgb, var(--sp-text) 7%, transparent) 1px, transparent 1.6px) 0 0 / 18px 18px;
+  -webkit-mask-image: linear-gradient(100deg, transparent 50%, #000 95%);
+  mask-image: linear-gradient(100deg, transparent 50%, #000 95%);
+  pointer-events: none;
+}
+.sp-hero > * { position: relative; z-index: 1; }
+.sp-hero-title { margin: .35rem 0 .9rem; font: 700 clamp(2.5rem, 1.5rem + 3.2vw, 4.2rem)/.95 var(--sp-font-display); letter-spacing: var(--sp-track-title); text-transform: uppercase; }
+.sp-hero-title .accent { color: var(--sp-accent); }
+.sp-hero-lead { max-width: 560px; color: var(--sp-text-muted); font-size: 1.02rem; }
+
+/* Shop item art for items the game ships no image for: the item's colour as a glow under its module's icon. */
+.sp-art {
+  --c: var(--sp-text-faint);
+  display: inline-grid;
+  place-items: center;
+  width: 4.4rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--c) 42%, transparent), color-mix(in srgb, var(--c) 12%, transparent) 55%, transparent 70%);
+  color: color-mix(in srgb, var(--c) 72%, #fff);
+}
+.sp-art .bi { font-size: 1.9rem; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--c) 70%, transparent)); }
+.sp-art.multi, .sp-art.team { --c: #fff; }
+.sp-art.multi { background: radial-gradient(circle, transparent 0 34%, var(--sp-tile) 70%), conic-gradient(#ff4f3f, #f2d43a, #8fd14f, #5aaeff, #c08cff, #ff4f3f); }
+.sp-art.team { background: radial-gradient(circle, transparent 0 34%, var(--sp-tile) 70%), linear-gradient(90deg, var(--sp-t) 50%, var(--sp-ct) 50%); }
+.sp-art.sm { width: 2.5rem; }
+.sp-art.sm .bi { font-size: 1.05rem; }
+
+/* =========================================================================================
+   9. Feedback
+   ========================================================================================= */
+.sp-callout {
+  --hue: var(--sp-info);
+  display: flex;
+  gap: .75rem;
+  padding: .75rem .9rem;
+  background: color-mix(in srgb, var(--hue) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--hue) 26%, transparent);
+  border-radius: var(--sp-radius);
+  color: var(--sp-text);
+  font-size: .88rem;
+}
+.sp-callout > .bi { color: var(--hue); font-size: 1.1rem; line-height: 1.3; }
+.sp-callout strong { color: var(--hue); }
+.sp-toast-stack { position: fixed; top: 76px; right: 1rem; z-index: 1090; display: flex; flex-direction: column; gap: .5rem; pointer-events: none; }
+.sp-toast {
+  min-width: 260px;
+  max-width: 380px;
+  padding: .7rem .9rem;
+  background: color-mix(in srgb, var(--sp-surface-raised) 96%, transparent);
+  border: 1px solid color-mix(in srgb, var(--hue, var(--sp-accent)) 35%, var(--sp-edge));
+  border-radius: var(--sp-radius-lg);
+  box-shadow: var(--sp-shadow-drop);
+  font-size: .86rem;
+  animation: sp-toast-in var(--sp-med) var(--sp-ease);
+  pointer-events: auto;
+}
+.sp-toast-title { font: 600 .76rem var(--sp-font-display); letter-spacing: var(--sp-track-caps); text-transform: uppercase; color: var(--hue, var(--sp-accent)); }
+@keyframes sp-toast-in { from { opacity: 0; transform: translateX(12px); } }
+.sp-empty { padding: 2.5rem 1rem; text-align: center; color: var(--sp-text-faint); }
+.sp-empty .bi { display: block; font-size: 2rem; margin-bottom: .5rem; }
+
+/* Swatch: one ladder step on a checker, for the theme editor and the design system page. */
+.sp-swatch {
+  position: relative;
+  height: 44px;
+  border-radius: var(--sp-radius);
+  border: 1px solid var(--sp-edge);
+  background:
+    linear-gradient(var(--c), var(--c)),
+    repeating-conic-gradient(#1a1f27 0 25%, #11151b 0 50%) 0 0 / 12px 12px;
+}
+.sp-swatch span { position: absolute; left: 4px; bottom: 2px; font: 500 .6rem var(--sp-font-mono); color: #fff; text-shadow: 0 1px 2px #000; }
+
+/* =========================================================================================
+   10. Mockup-only toolbar (not part of the design)
+   ========================================================================================= */
+.mock-bar {
+  position: fixed;
+  left: .75rem;
+  bottom: .75rem;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .4rem .5rem;
+  background: rgba(8, 9, 10, .92);
+  border: 1px dashed #ff00aa;
+  border-radius: 6px;
+  font: 500 .74rem var(--sp-font-body);
+  color: #f5f7fa;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .6);
+}
+.mock-bar b { color: #ff66cc; font: 700 .68rem var(--sp-font-display); letter-spacing: .16em; text-transform: uppercase; }
+.mock-bar select { background: #11151b; color: #f5f7fa; border: 1px solid #333; border-radius: 4px; font-size: .74rem; padding: .1rem .3rem; }
+.mock-bar a { color: #ff99dd; }
+
+/* =========================================================================================
+   11. Tones - set the --hue a component draws its ladder from. Last, so they beat each component's default.
+   ========================================================================================= */
+.tone-accent { --hue: var(--sp-accent); }
+.tone-gold { --hue: var(--sp-gold); }
+.tone-info { --hue: var(--sp-info); }
+.tone-success { --hue: var(--sp-success); }
+.tone-caution { --hue: var(--sp-caution); }
+.tone-danger { --hue: var(--sp-danger); }
+.tone-ct { --hue: var(--sp-ct); }
+.tone-t { --hue: var(--sp-t); }
+.tone-legend { --hue: var(--sp-legend); }
+.tone-muted { --hue: var(--sp-text-muted); }
+.tone-faint { --hue: var(--sp-text-faint); }
+.r-1 { --hue: var(--sp-rarity-1); }  .r-2 { --hue: var(--sp-rarity-2); }  .r-3 { --hue: var(--sp-rarity-3); }
+.r-4 { --hue: var(--sp-rarity-4); }  .r-5 { --hue: var(--sp-rarity-5); }  .r-6 { --hue: var(--sp-rarity-6); }
+.r-7 { --hue: var(--sp-rarity-7); }  .r-8 { --hue: var(--sp-rarity-8); }  .r-9 { --hue: var(--sp-rarity-9); }
+.r-10 { --hue: var(--sp-rarity-10); }
+
+/* =========================================================================================
+   12. Responsive and motion
+   ========================================================================================= */
+/* Seven nav entries (staff with every module on) need the full container width. */
+@media (max-width: 1365.98px) {
+  .sp-topbar .sp-search { display: none; }
+}
+@media (max-width: 1099.98px) {
+  .sp-nav .sp-navlink .label { display: none; }
+}
+@media (max-width: 991.98px) {
+  .sp-locker { grid-template-columns: minmax(0, 1fr); }
+  .sp-side { position: static; flex-direction: row; overflow-x: auto; gap: .3rem; padding-bottom: .2rem; }
+  .sp-side-item { width: auto; flex-shrink: 0; background: color-mix(in srgb, var(--sp-text) 4%, transparent); }
+  .sp-side-sep, .sp-side-label { display: none; }
+  .sp-shell-head, .sp-shell-body { padding-left: 1rem; padding-right: 1rem; }
+  .sp-rule { margin: 0 1rem; }
+}
+@media (max-width: 575.98px) {
+  .sp-podium { grid-template-columns: 1fr; }
+  .sp-brand-sub, .sp-brand-name { display: none; }
+  .sp-topbar-inner { gap: .5rem; }
+  .sp-nav { gap: 0; }
+  .sp-navlink { padding: 0 .4rem; }
+  .sp-fields { grid-template-columns: 1fr; }
+  .sp-fields > dt { border-bottom: 0; padding-bottom: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

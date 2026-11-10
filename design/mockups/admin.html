@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin · SwiftlyS2 Panel mockup</title>
+  <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/panel.css">
+  <script src="assets/js/sample-data.js"></script>
+  <script src="assets/js/panel.js"></script>
+  <style>
+    .module { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .9rem; align-items: center; }
+    .module .ico { width: 42px; height: 42px; display: grid; place-items: center; font-size: 1.3rem; color: var(--hue); background: color-mix(in srgb, var(--hue) 14%, transparent); border: 1px solid color-mix(in srgb, var(--hue) 40%, transparent); border-radius: var(--sp-radius); }
+    .module.off { opacity: .55; }
+    .check { display: flex; gap: .6rem; align-items: flex-start; padding: .5rem 0; border-bottom: 1px solid var(--sp-edge-soft); font-size: .88rem; }
+    .check:last-child { border-bottom: 0; }
+    .check .bi { font-size: 1rem; line-height: 1.3; }
+    section[id] { scroll-margin-top: 80px; }
+  </style>
+</head>
+<body>
+<div id="sp-top"></div>
+
+<main class="sp-container py-4" id="page"></main>
+
+<div id="sp-foot"></div>
+<script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script>
+(() => {
+  SP.layout('admin');
+  const { html, mount, data: D, fmt } = SP;
+  const gate = SP.adminGate('panel.settings');
+  if (gate) { mount('#page', gate); return; }
+
+  const icons = { servers: ['hdd-stack-fill', 'tone-info'], admins: ['shield-lock-fill', 'tone-danger'], ranks: ['trophy-fill', 'tone-gold'],
+    weaponskins: ['crosshair', 'tone-accent'], vipcore: ['gem', 'tone-legend'], economy: ['coin', 'tone-success'], shop: ['bag-fill', 'tone-gold'] };
+  const tables = { servers: ['servers', 'player_sessions'], admins: ['admins', 'groups', 'bans', 'sanctions', 'ip_ban_exclusions', 'player_sessions', 'VersionInfo'],
+    ranks: ['ranks_players', 'ranks_players_history', 'ranks_settings', 'ranks_weapon_stats', 'ranks_combos', 'comp_ranks_players', 'comp_ranks_elopoints'],
+    weaponskins: ['wp_player_skins', 'wp_player_knife', 'wp_player_gloves', 'wp_player_agents', 'wp_player_music', 'wp_player_pins', 'wp_player_graffiti'],
+    vipcore: ['vip_users', 'vip_servers'], economy: ['balance'], shop: ['PlayerCookies', 'balance', 'shopcore_ledger', 'sp_shop_items'] };
+  const online = SP.servers.filter((s) => s.live.online);
+  const day = D.admins.bans.concat(D.admins.sanctions).filter((r) => SP.now - r.CreatedAt < 86_400_000).length;
+
+  function modulesHtml() {
+    return D.panel.modules.map((m) => {
+      const on = SP.modules.enabled(m.id);
+      const [icon, tone] = icons[m.id];
+      const health = !on ? html`<span class="sp-pill tone-faint">Disabled</span>` : m.health === 'warn'
+        ? html`<span class="sp-pill tone-caution" title="${m.note}" data-bs-toggle="tooltip"><i class="bi bi-exclamation-triangle-fill"></i>Check</span>`
+        : html`<span class="sp-pill tone-success"><i class="bi bi-check2-circle"></i>Healthy</span>`;
+      return html`<div class="sp-panel module ${on ? '' : 'off'} ${tone}">
+        <span class="ico"><i class="bi bi-${icon}"></i></span>
+        <div class="min-w-0">
+          <div class="d-flex flex-wrap align-items-center gap-2"><span class="sp-display fs-5">${m.name}</span><span class="sp-badge">v${m.version}</span>${health}</div>
+          <div class="fs-8 text-muted2 mt-1">${m.plugin}</div>
+          <div class="fs-8 text-faint mt-1">Connection <span class="mono text-muted2">${m.connection}</span> · tables ${tables[m.id].map((t) => html`<span class="mono">${t}</span>`).reduce((a, b) => html`${a}, ${b}`)}</div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-sp btn-sm" ${on ? '' : SP.raw('disabled')}><i class="bi bi-sliders"></i><span class="d-none d-md-inline ms-1">Settings</span></button>
+          <div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" role="switch" data-module="${m.id}" ${on ? SP.raw('checked') : ''} aria-label="Enable ${m.name}"></div>
+        </div></div>`;
+    });
+  }
+
+  const check = (ok, title, detail, tone) => html`<div class="check"><i class="bi bi-${ok === true ? 'check-circle-fill text-success2' : ok === false ? 'x-octagon-fill text-danger2' : 'exclamation-triangle-fill text-gold'}"></i>
+    <div><div>${title}</div>${detail ? html`<div class="fs-8 text-faint">${detail}</div>` : ''}</div></div>`;
+
+  function render() {
+    mount('#page', html`
+      <section class="sp-shell mb-4">
+        <div class="sp-shell-head">
+          <div><span class="sp-eyebrow">Admin</span><h1 class="sp-title">Dashboard</h1></div>
+          <div class="d-flex flex-wrap gap-2"><span class="sp-pill lg tone-muted">Panel v0.1.0</span><span class="sp-pill lg tone-muted">PHP 8.3.12</span><span class="sp-pill lg tone-muted">MySQL 8.0.39</span></div>
+        </div>
+        <div class="sp-rule"></div>
+        <div class="sp-shell-body"><div class="sp-locker">
+          <aside class="sp-side">${SP.adminNav('dashboard')}</aside>
+          <div class="min-w-0">
+            <div class="sp-kpis mb-4">
+              <div class="sp-kpi tone-success"><i class="bi bi-people-fill"></i><div class="sp-stat"><span class="sp-stat-value">${online.reduce((n, s) => n + s.live.players, 0)}</span><span class="sp-stat-label">Playing now</span></div></div>
+              <div class="sp-kpi tone-danger"><i class="bi bi-hammer"></i><div class="sp-stat"><span class="sp-stat-value">${D.admins.bans.filter((b) => SP.admins.status(b) === 'active').length}</span><span class="sp-stat-label">Active bans</span></div></div>
+              <div class="sp-kpi tone-caution"><i class="bi bi-lightning-charge-fill"></i><div class="sp-stat"><span class="sp-stat-value">${day}</span><span class="sp-stat-label">Punishments · 24h</span></div></div>
+              <div class="sp-kpi tone-info"><i class="bi bi-person-vcard"></i><div class="sp-stat"><span class="sp-stat-value">214</span><span class="sp-stat-label">Panel users</span></div></div>
+            </div>
+
+            <section id="modules" class="mb-4">
+              <h2 class="sp-section-title">Modules <small>a module adds pages, nav entries and profile sections</small></h2>
+              <div class="d-flex flex-column gap-2">${modulesHtml()}</div>
+              <div class="fs-8 text-faint mt-2">Third-party modules: upload a folder to <span class="mono">modules/</span> over SFTP, then enable it here. Toggling here changes the mockup's nav on every page.</div>
+            </section>
+
+            <div class="row g-4 mb-4">
+              <div class="col-lg-6"><section>
+                <h2 class="sp-section-title">System checks</h2>
+                <div class="sp-panel">
+                  ${check(true, 'PHP 8.3.12', 'Minimum 8.3 · pdo_mysql, json, mbstring, openssl, curl')}
+                  ${check(true, 'storage/ is writable', 'cache, logs, sessions, locks')}
+                  ${check(false, 'install/ still exists', 'Delete it over SFTP — the installer is locked, but should not stay online')}
+                  ${check('warn', 'intl extension missing', 'Dates fall back to built-in formatting')}
+                  ${check(true, 'Outbound UDP works', 'A2S queries reach 6 of 7 servers; Surf Beginner falls back to sessions')}
+                  ${check(true, 'Background tasks', 'Pseudo-cron ran 2m ago · or call cron.php?key=… from your host\u2019s cron')}
+                  ${check(true, 'Steam Web API key set', 'Names and avatars refresh daily')}
+                  ${SP.modules.enabled('shop') ? check(true, `shopcore_ledger · ${fmt.num(D.shop.shopcore_ledger.length)} rows`, 'No SteamId index, which ShopCore does not create; a warning appears past 100,000 rows') : ''}
+                </div></section></div>
+              <div class="col-lg-6"><section>
+                <h2 class="sp-section-title">Connections <small>config/config.php</small></h2>
+                <div class="sp-rows">${[['default', 'MySQL 8.0.39', 3, 'ranks, vipcore, economy, shopcore_ledger'], ['admins', 'MySQL 8.0.39', 4, 'servers, admins'], ['weaponskins', 'MariaDB 11.4', 6, 'weaponskins'], ['cookies', 'MySQL 8.0.39', 3, 'shop · PlayerCookies'], ['panel', 'MySQL 8.0.39', 2, 'sp_* tables']]
+                  .map(([n, v, ms, used]) => html`<div class="sp-row"><span class="sp-dot tone-success"></span><span class="mono">${n}</span><span class="fs-8 text-faint">${v} · ${used}</span><span class="end mono fs-8 text-success2">${ms} ms</span></div>`)}</div>
+                <div class="fs-8 text-faint mt-2">Named like SwiftlyS2's <span class="mono">database.jsonc</span>, so module settings use the same names as the plugins. The installer can import that file.</div>
+              </section></div>
+            </div>
+
+            <section id="settings" class="mb-4">
+              <h2 class="sp-section-title">General settings</h2>
+              <div class="sp-panel"><div class="row g-3">
+                <div class="col-md-6"><label class="form-label" for="s-name">Community name</label><input class="form-control" id="s-name" value="${D.meta.community}"></div>
+                <div class="col-md-6"><label class="form-label" for="s-tz">Time zone</label><select class="form-select" id="s-tz"><option>UTC</option><option selected>Europe/Vilnius</option><option>Europe/Berlin</option></select></div>
+                <div class="col-md-6"><label class="form-label" for="s-lang">Default language</label><select class="form-select" id="s-lang"><option selected>English</option><option>Lietuvių</option><option>Português (Brasil)</option></select></div>
+                <div class="col-md-6"><label class="form-label" for="s-key">Steam Web API key</label><input class="form-control mono" id="s-key" type="password" value="0000000000000000"><div class="form-text">Optional — only names and avatars need it; sign-in works without.</div></div>
+                <div class="col-12 d-flex flex-wrap gap-4">
+                  <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="s-1" checked><label class="form-check-label" for="s-1">Public punishments list</label></div>
+                  <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="s-2" checked><label class="form-check-label" for="s-2">Show admin names publicly</label></div>
+                  <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="s-3"><label class="form-check-label" for="s-3">Hide staff from public player lists</label></div>
+                </div>
+                <div class="col-12 text-end"><button class="btn btn-solid" data-save>Save settings</button></div>
+              </div></div>
+            </section>
+
+            <section id="audit">
+              <h2 class="sp-section-title">Audit log <small>sp_audit_log · every write the panel makes</small></h2>
+              <div class="sp-table-wrap"><table class="sp-table compact"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead><tbody>
+                ${D.panel.audit.map((a) => html`<tr><td class="fs-7 text-muted2" title="${fmt.date(a.at)}">${fmt.ago(a.at)}</td><td>${a.user}</td>
+                  <td><span class="sp-chip code">${a.action}</span></td><td>${a.target}</td><td class="fs-7 text-muted2">${a.detail}</td></tr>`)}</tbody></table></div>
+            </section>
+          </div>
+        </div></div>
+      </section>`);
+    SP.tips();
+  }
+
+  document.addEventListener('change', (e) => {
+    const m = e.target.dataset.module;
+    if (!m) return;
+    SP.modules.set(m, e.target.checked);
+    SP.toast(e.target.checked ? 'Module enabled' : 'Module disabled', `${m}: nav entries and pages ${e.target.checked ? 'added' : 'removed'} on the next page load.`, e.target.checked ? 'tone-success' : 'tone-muted');
+    render();
+  });
+  document.addEventListener('click', (e) => { if (e.target.closest('[data-save]')) SP.toast('Saved', 'Settings written to sp_settings.', 'tone-success'); });
+  render();
+  if (location.hash) document.querySelector(location.hash)?.scrollIntoView();
+})();
+</script>
+</body>
+</html>

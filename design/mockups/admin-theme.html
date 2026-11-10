@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Theme · SwiftlyS2 Panel mockup</title>
+  <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/panel.css">
+  <script src="assets/js/sample-data.js"></script>
+  <script src="assets/js/panel.js"></script>
+  <style>
+    .preset { display: flex; flex-direction: column; gap: .45rem; padding: .7rem; text-align: left; background: var(--sp-surface-row); border: 1px solid var(--sp-edge); border-radius: var(--sp-radius); color: var(--sp-text); }
+    .preset:hover { border-color: var(--sp-accent-half); }
+    .preset.active { border-color: var(--sp-accent); box-shadow: inset 0 0 0 1px var(--sp-accent); }
+    .preset .strip { display: flex; height: 22px; border-radius: var(--sp-radius-sm); overflow: hidden; }
+    .preset .strip i { flex: 1; }
+    .tok { display: grid; grid-template-columns: 44px minmax(0, 1fr) 96px; gap: .6rem; align-items: center; padding: .35rem 0; border-bottom: 1px solid var(--sp-edge-soft); }
+    .tok input[type=color] { width: 44px; height: 32px; padding: 2px; }
+    .tok .hex { font: 500 .78rem var(--sp-font-mono); }
+    .preview { position: sticky; top: 76px; }
+  </style>
+</head>
+<body>
+<div id="sp-top"></div>
+<main class="sp-container py-4" id="page"></main>
+<div id="sp-foot"></div>
+<script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script>
+(() => {
+  SP.layout('admin');
+  const { html, mount, data: D } = SP;
+  const gate = SP.adminGate('panel.theme');
+  if (gate) { mount('#page', gate); return; }
+
+  const root = document.documentElement;
+  const groups = [
+    ['Brand', 'One accent carries every interaction; swapping it re-themes the panel.', [['--sp-accent', 'Accent', 'selection, the active entry, your own pick'], ['--sp-accent-strong', 'Accent strong', 'accent text on a dark ground']]],
+    ['Signals', 'One job per hue.', [['--sp-gold', 'Gold', 'values, prices, the leader'], ['--sp-gold-deep', 'Gold deep', 'darker gold for small type'], ['--sp-info', 'Info', 'counters and meters'],
+      ['--sp-success', 'Success', 'good state, lifted'], ['--sp-caution', 'Caution', 'between good and bad'], ['--sp-danger', 'Danger', 'active punishment, destructive'], ['--sp-legend', 'Legend', 'a tier above gold']]],
+    ['Teams', '', [['--sp-t', 'Terrorist', ''], ['--sp-ct', 'Counter-Terrorist', '']]],
+    ['Surfaces', "CS2's slate blue by default; keep them dark so the hues carry the colour.", [['--sp-bg', 'Page', ''], ['--sp-surface', 'Surface', 'inputs, badges'], ['--sp-surface-raised', 'Raised', 'shell top'],
+      ['--sp-surface-row', 'Row', 'rows and controls'], ['--sp-surface-hover', 'Hover', ''], ['--sp-edge', 'Hairline', 'borders'], ['--sp-tile', 'Tile top', ''], ['--sp-tile-deep', 'Tile foot', '']]],
+    ['Text', '', [['--sp-text', 'Text', ''], ['--sp-text-muted', 'Muted', ''], ['--sp-text-faint', 'Faint', '']]],
+  ];
+  const advanced = [
+    ['Rarity', [...Array(10)].map((_, i) => [`--sp-rarity-${i + 1}`, `Rarity ${i + 1}`])],
+    ['Wear', [['--sp-wear-fn', 'Factory New'], ['--sp-wear-mw', 'Minimal Wear'], ['--sp-wear-ft', 'Field-Tested'], ['--sp-wear-ww', 'Well-Worn'], ['--sp-wear-bs', 'Battle-Scarred']]],
+    ['CS Rating bands', [...Array(7)].map((_, i) => [`--sp-rating-${i}`, `${i * 5}k+`])],
+  ];
+  const state = SP.theme.current();
+  const tokens = { ...state.tokens };
+  const read = (k) => (tokens[k] ?? getComputedStyle(root).getPropertyValue(k)).trim();
+
+  function set(k, v) {
+    tokens[k] = v;
+    state.preset = 'custom';
+    SP.theme.apply({ [k]: v });
+    renderSide();
+  }
+
+  const tok = ([k, label, hint]) => html`<div class="tok"><input type="color" class="form-control form-control-color" value="${read(k)}" data-tok="${k}" aria-label="${label}">
+    <span class="min-w-0"><span class="d-block fs-7 fw-semibold">${label}</span>${hint ? html`<span class="fs-8 text-faint">${hint}</span>` : ''}</span>
+    <input class="form-control form-control-sm hex" value="${read(k)}" data-hex="${k}" aria-label="${label} hex"></div>`;
+
+  function contrast() {
+    const pairs = [['Text on page', '--sp-text', '--sp-bg'], ['Muted on row', '--sp-text-muted', '--sp-surface-row'], ['Faint on row', '--sp-text-faint', '--sp-surface-row'],
+      ['Accent on page', '--sp-accent', '--sp-bg'], ['Ink on accent', null, '--sp-accent'], ['Gold on surface', '--sp-gold', '--sp-surface']];
+    return pairs.map(([label, fg, bg]) => {
+      const f = fg ? read(fg) : getComputedStyle(root).getPropertyValue('--sp-on-accent').trim();
+      const r = SP.theme.contrast(f, read(bg));
+      const grade = r >= 7 ? ['AAA', 'tone-success'] : r >= 4.5 ? ['AA', 'tone-success'] : r >= 3 ? ['AA large', 'tone-caution'] : ['Fail', 'tone-danger'];
+      return html`<div class="d-flex align-items-center gap-2 py-1"><span class="flex-grow-1 fs-7">${label}</span><span class="mono fs-8">${r.toFixed(1)}:1</span><span class="sp-pill ${grade[1]}">${grade[0]}</span></div>`;
+    });
+  }
+
+  function renderSide() {
+    mount('#contrast', contrast());
+    document.querySelectorAll('.preset').forEach((el) => el.classList.toggle('active', el.dataset.preset === state.preset));
+    const badge = document.getElementById('preset-name');
+    if (badge) badge.textContent = state.preset === 'custom' ? 'Custom' : SP.theme.presets[state.preset].label;
+  }
+
+  function preview() {
+    const ak = D.catalog.paintkits.weapon_ak47;
+    const pick = [ak.find((p) => p.paint === 282), ak.find((p) => p.paint === 180)];
+    return html`<div class="sp-shell preview">
+      <div class="sp-shell-head"><div><span class="sp-eyebrow">Preview</span><h2 class="sp-title fs-4">Your rank</h2></div>${SP.ranks.rating(12310)}</div>
+      <div class="sp-rule"></div>
+      <div class="sp-shell-body">
+        <div class="d-flex flex-column gap-1 mb-3"><button class="sp-side-item active"><i class="bi bi-trophy-fill"></i>My rank</button><button class="sp-side-item"><i class="bi bi-bar-chart-fill"></i>Statistics</button></div>
+        <div class="sp-grid mb-3" style="--min:120px">${pick.map((p, i) => html`<div class="sp-tile rarity r-${SP.cat.rarity(p.color)} ${i ? '' : 'chosen'}"><div class="sp-tile-thumb"><img src="${p.image}" alt=""></div>
+          <div class="sp-tile-type">${p.rarity}</div><div class="sp-tile-name">${p.name}</div></div>`)}</div>
+        <div class="d-flex flex-wrap gap-1 mb-3"><span class="sp-pill tone-danger"><span class="sp-dot"></span>Active</span><span class="sp-pill tone-success">Unbanned</span>
+          <span class="sp-badge tone-gold"><i class="bi bi-globe2"></i>All servers</span><span class="sp-pill tone-ct">CT</span><span class="sp-pill tone-t">T</span></div>
+        <div class="d-flex flex-wrap gap-2 mb-3"><button class="btn btn-primary btn-sm">Primary</button><button class="btn btn-solid btn-sm">Solid</button><button class="btn btn-danger btn-sm">Ban</button><button class="btn btn-sp btn-sm">Control</button></div>
+        <div class="sp-rows mb-3"><div class="sp-row chosen"><span class="sp-display">1</span>${SP.avatar('ŽaibasLT', D.meta.featured, 'sm')}<span class="flex-grow-1">ŽaibasLT</span>${SP.ranks.rating(6063, 'sm')}</div>
+          <div class="sp-row hover"><span class="sp-display text-faint">2</span>${SP.avatar('kebab', '7', 'sm')}<span class="flex-grow-1">kebab_enjoyer</span>${SP.ranks.rating(5274, 'sm')}</div></div>
+        <div class="input-group input-group-sm"><input class="form-control" placeholder="Search players"><button class="btn btn-primary">Go</button></div>
+      </div></div>`;
+  }
+
+  function render() {
+    mount('#page', html`<section class="sp-shell">
+      <div class="sp-shell-head"><div><span class="sp-eyebrow">Admin</span><h1 class="sp-title">Theme</h1></div>
+        <div class="d-flex flex-wrap gap-2 align-items-center"><span class="sp-pill lg tone-accent" id="preset-name"></span>
+          <label class="btn btn-sp btn-sm mb-0"><i class="bi bi-upload me-1"></i>Import<input type="file" accept="application/json" hidden id="import"></label>
+          <button class="btn btn-sp btn-sm" data-export><i class="bi bi-download me-1"></i>Export</button>
+          <button class="btn btn-ghost btn-sm" data-reset>Reset</button><button class="btn btn-solid btn-sm" data-save><i class="bi bi-check2-circle me-1"></i>Save theme</button></div></div>
+      <div class="sp-rule"></div>
+      <div class="sp-shell-body"><div class="sp-locker">
+        <aside class="sp-side">${SP.adminNav('theme')}</aside>
+        <div class="min-w-0"><div class="row g-4">
+          <div class="col-xl-7">
+            <h2 class="sp-section-title">Presets <small>each sets the accent and a surface family</small></h2>
+            <div class="sp-grid mb-4" style="--min:150px">${Object.entries(SP.theme.presets).map(([id, p]) => html`<button class="preset" data-preset="${id}">
+              <span class="strip"><i style="background:${p.tokens['--sp-accent']}"></i><i style="background:${p.tokens['--sp-accent-strong']}"></i><i style="background:${p.tokens['--sp-tile']}"></i><i style="background:${p.tokens['--sp-bg']}"></i></span>
+              <span class="sp-display fs-6">${p.label}</span><span class="fs-8 text-faint">${p.note || '\u00a0'}</span></button>`)}</div>
+            ${groups.map(([name, note, list]) => html`<h2 class="sp-section-title mt-2">${name} ${note ? html`<small>${note}</small>` : ''}</h2><div class="mb-3">${list.map(tok)}</div>`)}
+            <h2 class="sp-section-title mt-2">Shape &amp; type</h2>
+            <div class="sp-panel mb-3"><div class="row g-3">
+              <div class="col-md-6"><label class="form-label" for="radius">Corner radius <span class="mono text-faint" id="radius-v">${parseInt(read('--sp-radius'), 10)}px</span></label>
+                <input type="range" class="form-range" min="0" max="12" id="radius" value="${parseInt(read('--sp-radius'), 10)}"></div>
+              <div class="col-md-6"><label class="form-label" for="glass">Panel opacity <span class="mono text-faint" id="glass-v">${read('--sp-shell-opacity')}</span></label>
+                <input type="range" class="form-range" min="60" max="100" id="glass" value="${parseInt(read('--sp-shell-opacity'), 10)}"></div>
+              <div class="col-md-6"><label class="form-label" for="font">Display font</label><select class="form-select" id="font">
+                <option value='"Barlow Semi Condensed", "Arial Narrow", sans-serif'>Barlow Semi Condensed (bundled)</option><option value='"Noto Sans Variable", system-ui, sans-serif'>Noto Sans (bundled)</option>
+                <option value='system-ui, sans-serif'>System UI</option></select></div>
+              <div class="col-md-6"><label class="form-label" for="bgimg">Background image</label><input class="form-control" id="bgimg" placeholder="uploads/bg/mirage.webp — under a dark glaze"></div>
+            </div></div>
+            <details class="mb-3"><summary class="sp-section-title" style="cursor:pointer">Game colours <small>CS2's own: rarity, wear, CS Rating — presets never touch these</small></summary>
+              ${advanced.map(([name, list]) => html`<div class="sp-stat-label mt-3 mb-1">${name}</div>${list.map(tok)}`)}</details>
+          </div>
+          <div class="col-xl-5">
+            ${preview()}
+            <h2 class="sp-section-title mt-4">Contrast <small>WCAG 2.1</small></h2><div class="sp-panel" id="contrast"></div>
+            <div class="sp-callout mt-3"><i class="bi bi-info-circle-fill"></i><div>Saving stores the tokens in <span class="mono">sp_settings</span> and compiles one <span class="mono">theme-&lt;hash&gt;.css</span>;
+              every ladder step is derived with <span class="mono">color-mix()</span>, and ink-on-accent is picked by contrast. No Sass, no build step.</div></div>
+          </div>
+        </div></div>
+      </div></div></section>`);
+    renderSide();
+  }
+
+  document.addEventListener('input', (e) => {
+    const t = e.target;
+    if (t.dataset.tok) { set(t.dataset.tok, t.value); const hex = document.querySelector(`[data-hex="${t.dataset.tok}"]`); if (hex) hex.value = t.value; }
+    else if (t.dataset.hex && /^#[0-9a-f]{6}$/i.test(t.value)) { set(t.dataset.hex, t.value); const c = document.querySelector(`[data-tok="${t.dataset.hex}"]`); if (c) c.value = t.value; }
+    else if (t.id === 'radius') { set('--sp-radius', `${t.value}px`); set('--sp-radius-lg', `${Math.round(t.value * 1.6)}px`); document.getElementById('radius-v').textContent = `${t.value}px`; }
+    else if (t.id === 'glass') { set('--sp-shell-opacity', `${t.value}%`); document.getElementById('glass-v').textContent = `${t.value}%`; }
+  });
+  document.addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.id === 'font') set('--sp-font-display', t.value);
+    if (t.id === 'bgimg') set('--sp-bg-image', t.value ? `url("${t.value.replace(/["\\)]/g, '')}")` : 'none');
+    if (t.id === 'import' && t.files[0]) t.files[0].text().then((txt) => {
+      const j = JSON.parse(txt);
+      Object.entries(j.tokens ?? {}).filter(([k]) => /^--sp-[a-z0-9-]+$/.test(k)).forEach(([k, v]) => set(k, String(v)));
+      render(); SP.toast('Imported', `${Object.keys(j.tokens ?? {}).length} tokens`, 'tone-info');
+    });
+  });
+  document.addEventListener('click', (e) => {
+    const p = e.target.closest('[data-preset]');
+    if (p) {
+      Object.keys(tokens).forEach((k) => { root.style.removeProperty(k); delete tokens[k]; });
+      Object.assign(tokens, SP.theme.presets[p.dataset.preset].tokens);
+      SP.theme.apply(tokens);
+      state.preset = p.dataset.preset;
+      render();
+      return;
+    }
+    if (e.target.closest('[data-save]')) { SP.theme.save({ preset: state.preset, tokens }); SP.toast('Theme saved', 'Every page now uses it — open any other mockup page.', 'tone-success'); }
+    if (e.target.closest('[data-reset]')) { Object.keys(tokens).forEach((k) => root.style.removeProperty(k)); SP.theme.save({ preset: 'cs2', tokens: SP.theme.presets.cs2.tokens }); location.reload(); }
+    if (e.target.closest('[data-export]')) {
+      const blob = new Blob([JSON.stringify({ name: state.preset, version: 1, tokens }, null, 2)], { type: 'application/json' });
+      const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'swiftlys2-panel-theme.json' });
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+  });
+  render();
+})();
+</script>
+</body>
+</html>

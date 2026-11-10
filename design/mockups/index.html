@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SwiftlyS2 Panel · design mockups</title>
+  <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/panel.css">
+  <script src="assets/js/sample-data.js"></script>
+  <script src="assets/js/panel.js"></script>
+  <style>
+    .page-card { display: flex; flex-direction: column; gap: .5rem; height: 100%; padding: 1rem 1.1rem; text-align: left; cursor: pointer; }
+    .page-card .bi-lg { font-size: 1.6rem; color: var(--hue); }
+    .page-card .src { margin-top: auto; }
+  </style>
+</head>
+<body>
+<div id="sp-top"></div>
+
+<main class="sp-container py-4">
+  <section class="sp-hero mb-4">
+    <span class="sp-eyebrow">SwiftlyS2 Panel · design brainstorm</span>
+    <h1 class="sp-hero-title">Design<br><span class="accent">mockups</span></h1>
+    <p class="sp-hero-lead">Static HTML on Bootstrap 5.3 and the panel's own design system — CS2's menu look, with CustomHUD's rules for colour.
+      Every row is shaped like the plugins' real tables (Admins, Ranks and its modules, WeaponSkins, VIPCore); the item catalog is real CS2 data.</p>
+    <div class="d-flex flex-wrap gap-2 mt-3">
+      <a class="btn btn-solid" href="landing.html"><i class="bi bi-play-fill me-1"></i>Start at the landing page</a>
+      <a class="btn btn-sp" href="design-system.html"><i class="bi bi-palette-fill me-1"></i>Design system</a>
+      <a class="btn btn-ghost" href="../../docs/POC.md"><i class="bi bi-journal-text me-1"></i>docs/POC.md</a>
+    </div>
+  </section>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-4"><div class="sp-callout h-100"><i class="bi bi-person-badge"></i><div><strong>View as.</strong> The pink bar at the bottom switches between a guest, a VIP player,
+      a player without VIP and the owner. Navigation, staff actions, IP columns and WeaponSkins' locked options follow the roles.</div></div></div>
+    <div class="col-lg-4"><div class="sp-callout tone-gold h-100"><i class="bi bi-palette-fill"></i><div><strong>Theme.</strong> Pick a preset there, or open the theme editor:
+      a saved theme applies on every page. One accent re-themes the panel; rarity, wear and CS Rating colours stay CS2's own.</div></div></div>
+    <div class="col-lg-4"><div class="sp-callout tone-success h-100"><i class="bi bi-puzzle-fill"></i><div><strong>Modules.</strong> Disable a module on the admin dashboard and its nav entry,
+      pages and profile sections disappear everywhere — the same contract the real module system has.</div></div></div>
+  </div>
+
+  <h2 class="sp-section-title">Public pages</h2>
+  <div class="row g-3 mb-4" id="public"></div>
+  <h2 class="sp-section-title">Admin area <small>switch to the staff viewer</small></h2>
+  <div class="row g-3 mb-4" id="admin"></div>
+
+  <section class="sp-shell">
+    <div class="sp-shell-body row g-4">
+      <div class="col-lg-6"><h2 class="sp-section-title">Viewing them</h2>
+        <p class="mb-2">Open <span class="mono">index.html</span> straight from disk, or serve the folder — any static server or PHP works:</p>
+        <div class="sp-panel mono fs-7">cd design/mockups<br>php -S localhost:8000</div></div>
+      <div class="col-lg-6"><h2 class="sp-section-title">What is real and what is not</h2>
+        <ul class="fs-7 text-muted2 mb-0">
+          <li>Real: table and column names, units (Admins' milliseconds, VIPCore's seconds, Ranks' season ids), status rules, wording and formats copied from the plugins' translations.</li>
+          <li>Real: weapon, skin, agent, sticker, charm, music kit and pin data from ByMykel/CSGO-API (MIT), images from Steam's CDN.</li>
+          <li>Fictional: player names, SteamIDs, statistics, and TEST-NET IP addresses. A player named <span class="mono">&lt;script&gt;</span> checks escaping.</li>
+          <li>Not built: PHP, the database layer, Steam sign-in — the mockups are the design half of <span class="mono">docs/POC.md</span>.</li>
+        </ul></div>
+    </div>
+  </section>
+</main>
+
+<div id="sp-foot"></div>
+<script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script>
+(() => {
+  SP.layout('');
+  const { html, mount } = SP;
+  const card = ([href, icon, tone, title, text, src]) => html`<div class="col-md-6 col-xl-4"><a class="sp-tile page-card ${tone}" href="${href}">
+    <i class="bi bi-${icon} bi-lg"></i><span class="sp-display fs-5">${title}</span><span class="fs-7 text-muted2">${text}</span>
+    <span class="src fs-8 text-faint">${src}</span></a></div>`;
+  mount('#public', [
+    ['landing.html', 'house-door-fill', 'tone-accent', 'Landing', 'Hero, live servers, season podium, recent punishments, WeaponSkins showcase, shop items, VIP tiers.', 'servers · ranks_players · bans · sanctions · sp_shop_items · vip_users'],
+    ['servers.html', 'hdd-stack-fill', 'tone-info', 'Server browser', 'Cards with prefix map art, A2S status with a sessions fallback, players from open sessions, connect links.', 'servers · player_sessions · A2S_INFO'],
+    ['punishments.html', 'hammer', 'tone-danger', 'Punishments', 'Bans and comms with the plugin\u2019s statuses, silences grouped, record view, staff actions and a give-ban form.', 'bans · sanctions · ip_ban_exclusions'],
+    ['leaderboard.html', 'trophy-fill', 'tone-gold', 'Leaderboard', 'This season, all time and past seasons; XP, kills, playtime, the 5v5 Elo ladder, rank road and distribution.', 'ranks_players(+_history) · comp_ranks_elopoints'],
+    ['profile.html', 'person-vcard', 'tone-legend', 'Player profile', 'Every module about one SteamID: rank, Elo, prestige, stats, weapons and hit groups, loadout, shop inventory, record, sessions.', 'all modules'],
+    ['skins.html', 'crosshair', 'tone-t', 'Skin changer', 'The WeaponSkins locker on the web: categories, finishes, wear bands, seed, StatTrak™, name tag, stickers, charm.', 'wp_player_* · ItemPermissions'],
+    ['shop.html', 'bag-fill', 'tone-gold', 'Shop', 'ShopCore on the web: categories, items, credits, buying and selling while off the servers, inventory, history, gifts.', 'PlayerCookies · balance · shopcore_ledger'],
+  ].map(card));
+  mount('#admin', [
+    ['admin.html', 'speedometer2', 'tone-accent', 'Dashboard', 'Module manager with schema health, system checks, connections, settings and the audit log.', 'sp_modules · sp_settings · sp_audit_log'],
+    ['admin-roles.html', 'person-badge', 'tone-legend', 'Roles & permissions', 'Panel permissions by module, game permissions, auto-assignment from Admins and VIPCore groups, a tester.', 'sp_roles · sp_role_links'],
+    ['admin-theme.html', 'palette-fill', 'tone-gold', 'Theme editor', 'Presets, every token with live preview, contrast checks, import and export.', 'sp_settings → theme-<hash>.css'],
+    ['admin-admins.html', 'shield-lock-fill', 'tone-danger', 'Admins & groups', 'Admins, groups, server GUIDs and IP-ban exclusions, written exactly as the plugin stores them.', 'admins · groups · servers'],
+    ['admin-shop.html', 'bag-fill', 'tone-gold', 'Shop', 'The shop ledger, giving and removing credits, granting items, the imported catalog and ShopCore settings.', 'shopcore_ledger · balance · sp_shop_items'],
+    ['design-system.html', 'grid-3x3-gap-fill', 'tone-info', 'Design system', 'Hue ladders, game colours, typography and every component.', 'assets/css/panel.css'],
+  ].map(card));
+})();
+</script>
+</body>
+</html>

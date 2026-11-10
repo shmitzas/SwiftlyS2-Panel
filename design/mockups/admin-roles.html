@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Roles · SwiftlyS2 Panel mockup</title>
+  <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/panel.css">
+  <script src="assets/js/sample-data.js"></script>
+  <script src="assets/js/panel.js"></script>
+  <style>
+    .role-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 25%, transparent); flex-shrink: 0; }
+    .perm { display: flex; gap: .6rem; align-items: flex-start; padding: .35rem .2rem; border-radius: var(--sp-radius); }
+    .perm:hover { background: var(--sp-surface-hover); }
+    .perm .mono { font-size: .78rem; }
+    .link-row { display: grid; grid-template-columns: 190px minmax(0, 1fr) auto; gap: .5rem; align-items: center; }
+    section[id] { scroll-margin-top: 80px; }
+  </style>
+</head>
+<body>
+<div id="sp-top"></div>
+<main class="sp-container py-4" id="page"></main>
+<div id="sp-foot"></div>
+<script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script>
+(() => {
+  SP.layout('admin');
+  const { html, mount, data: D } = SP;
+  const gate = SP.adminGate('panel.roles');
+  if (gate) { mount('#page', gate); return; }
+
+  const catalog = {
+    Panel: [['panel.settings', 'General settings and connections'], ['panel.theme', 'Theme editor'], ['panel.modules', 'Enable and configure modules'],
+      ['panel.roles', 'Roles and auto-assignment'], ['panel.users', 'Panel users'], ['panel.audit', 'Read the audit log']],
+    Admins: [['admins.bans.create', 'Ban on one server'], ['admins.bans.create.global', 'Ban on every server'], ['admins.bans.lift', 'Unban, change length'],
+      ['admins.comms.create', 'Gag, mute, silence'], ['admins.comms.create.global', 'Global gags and mutes'], ['admins.comms.lift', 'Ungag, unmute'],
+      ['admins.ip.view', 'See IP addresses'], ['admins.sessions.view', 'See sessions and alts'], ['admins.admins.manage', 'Edit admins and groups'],
+      ['admins.exclusions.manage', 'IP ban exclusions']],
+    Ranks: [['ranks.settings', 'Ladder, seasons, table prefix'], ['ranks.reset', 'Reset a player (offline only)']],
+    WeaponSkins: [['weaponskins.use', 'Use the skin changer'], ['weaponskins.manage', 'Item permissions, edit others'], ['weaponskins.catalog', 'Refresh the item catalog']],
+    VIPCore: [['vipcore.manage', 'Grant, extend and remove VIP']],
+    Economy: [['economy.manage', 'Adjust any wallet; removals only while offline']],
+    Shop: [['shop.use', 'Buy, sell and gift on the web'], ['shop.ledger.view', 'Everyone\u2019s shop history and balances'], ['shop.credits.manage', 'Give and remove credits'],
+      ['shop.items.manage', 'Grant and revoke items'], ['shop.catalog', 'Import the catalog, web sale per module']],
+  };
+  const sources = [['steamid', 'SteamID64'], ['admins.group', 'Admins group'], ['admins.permission', 'Admins permission'], ['vipcore.group', 'VIPCore group'],
+    ['authenticated', 'Everyone signed in'], ['anonymous', 'Guests']];
+  const itemDocs = {
+    WeaponSkins: 'Weapon finishes', KnifeSkins: 'Knives and their finishes', GloveSkins: 'Gloves and their finishes', Stickers: 'Stickers on weapons',
+    Keychains: 'Charms on weapons', Agents: 'Agents (keep showing without it)', MusicKits: 'Music kits (keep showing without it)', Graffiti: 'Graffiti and !spray',
+    Patches: 'Agent patches', Pins: 'Scoreboard pins', Nametag: 'Name tags', Wear: 'Wear value', Seed: 'Pattern seed',
+  };
+  const roles = D.panel.roles.map((r) => ({ ...r, permissions: [...r.permissions], links: r.links.map((l) => ({ ...l })), gamePermissions: [...(r.gamePermissions ?? [])] }));
+  let current = roles[2];
+  let tester = D.meta.featured;
+  const members = (role) => D.players.filter((p) => SP.rolesFor(p.steamId).some((r) => r.id === role.id));
+
+  function editor() {
+    const r = current;
+    return html`<div class="sp-panel">
+      <div class="row g-3 mb-2">
+        <div class="col-md-5"><label class="form-label" for="r-name">Name</label><input class="form-control" id="r-name" value="${r.name}" ${r.system ? SP.raw('readonly') : ''}></div>
+        <div class="col-6 col-md-3"><label class="form-label" for="r-color">Colour</label><input class="form-control form-control-color w-100" type="color" id="r-color" value="${r.color}"></div>
+        <div class="col-6 col-md-4"><label class="form-label" for="r-weight">Weight</label><input class="form-control" type="number" id="r-weight" value="${r.weight}"><div class="form-text">Highest weight names the user.</div></div>
+      </div>
+      ${r.permissions.includes('*') ? html`<div class="sp-callout tone-gold mb-3"><i class="bi bi-stars"></i><div><strong>Owner.</strong> <span class="mono">*</span> grants every permission, now and for modules installed later.</div></div>` : ''}
+      <h3 class="sp-section-title mt-3">Panel permissions <small>exact keys, or a prefix ending in .* — SwiftlyS2's own rule</small></h3>
+      <div class="row g-3">${Object.entries(catalog).filter(([g]) => g === 'Panel' || SP.modules.enabled(g.toLowerCase())).map(([group, perms]) => html`
+        <div class="col-md-6 col-xl-4"><div class="d-flex justify-content-between align-items-center mb-1"><span class="sp-stat-label">${group}</span>
+          <label class="fs-8 text-faint"><input class="form-check-input me-1" type="checkbox" data-wild="${perms[0][0].split('.')[0]}.*" ${r.permissions.includes(`${perms[0][0].split('.')[0]}.*`) ? SP.raw('checked') : ''}>${perms[0][0].split('.')[0]}.*</label></div>
+          ${perms.map(([p, d]) => {
+            const via = !r.permissions.includes(p) && SP.hasAny(r.permissions, p);
+            return html`<label class="perm"><input class="form-check-input mt-1" type="checkbox" data-perm="${p}" ${SP.hasAny(r.permissions, p) ? SP.raw('checked') : ''} ${via ? SP.raw('disabled') : ''}>
+              <span><span class="mono d-block">${p}</span><span class="fs-8 text-faint">${d}${via ? ' · via wildcard' : ''}</span></span></label>`;
+          })}</div>`)}</div>
+      <h3 class="sp-section-title mt-4">Game permissions <small>what WeaponSkins' ItemPermissions and shop items' RequiredPermission check, e.g. vip</small></h3>
+      <div class="d-flex flex-wrap gap-2 align-items-center">${r.gamePermissions.map((g) => html`<span class="sp-chip code">${g} <span class="x" data-rmgame="${g}">&times;</span></span>`)}
+        <input class="form-control form-control-sm mono" style="width:160px" id="r-game" placeholder="add, e.g. vip"></div>
+      <div class="fs-8 text-faint mt-1">Mirrors SwiftlyS2's <span class="mono">permissions.jsonc</span> for people who are not in the Admins tables. Admins' own permissions are read from the database.</div>
+      <h3 class="sp-section-title mt-4">Assigned automatically to <small>evaluated at sign-in and every 10 minutes</small></h3>
+      <div class="d-flex flex-column gap-2">${r.links.map((l, i) => html`<div class="link-row">
+          <select class="form-select form-select-sm" data-link="${i}" data-field="source">${sources.map(([v, t]) => html`<option value="${v}" ${l.source === v ? SP.raw('selected') : ''}>${t}</option>`)}</select>
+          ${l.source === 'admins.group' ? html`<select class="form-select form-select-sm" data-link="${i}" data-field="value">${D.admins.groups.map((g) => html`<option ${l.value === g.Name ? SP.raw('selected') : ''}>${g.Name}</option>`)}</select>`
+            : l.source === 'vipcore.group' ? html`<select class="form-select form-select-sm" data-link="${i}" data-field="value">${D.vipcore.groups.map((g) => html`<option ${l.value === g.name ? SP.raw('selected') : ''}>${g.name}</option>`)}</select>`
+            : ['authenticated', 'anonymous'].includes(l.source) ? html`<span class="fs-8 text-faint">no value</span>`
+            : html`<input class="form-control form-control-sm mono" data-link="${i}" data-field="value" value="${l.value}">`}
+          <button class="btn btn-ghost btn-sm" data-rmlink="${i}" aria-label="Remove"><i class="bi bi-x-lg"></i></button></div>`)}
+        <div><button class="btn btn-sp btn-sm" data-addlink><i class="bi bi-plus-lg me-1"></i>Add rule</button></div></div>
+      <div class="d-flex justify-content-between align-items-center mt-4">
+        ${r.system ? html`<span class="fs-8 text-faint">Built-in role: can be edited, not deleted.</span>` : html`<button class="btn btn-danger btn-sm" data-delete><i class="bi bi-trash3-fill me-1"></i>Delete role</button>`}
+        <button class="btn btn-solid" data-save>Save role</button></div>
+    </div>`;
+  }
+
+  function testerHtml() {
+    const roles = SP.rolesFor(tester).sort((a, b) => b.weight - a.weight);
+    const perms = SP.permissionsFor(tester);
+    const game = SP.gamePermissionsFor(tester);
+    return html`<div class="sp-panel">
+      <label class="form-label" for="t-player">Player</label>
+      <select class="form-select mb-3" id="t-player">${D.players.map((p) => html`<option value="${p.steamId}" ${p.steamId === tester ? SP.raw('selected') : ''}>${p.name}</option>`)}</select>
+      <div class="d-flex flex-wrap gap-1 mb-2">${roles.map((r) => html`<span class="sp-pill" style="--hue:${r.color}">${r.name}</span>`)}</div>
+      <div class="sp-stat-label mt-2 mb-1">Panel permissions</div>
+      <div class="d-flex flex-wrap gap-1 mb-2">${perms.map((p) => html`<span class="sp-chip code">${p}</span>`)}</div>
+      <div class="sp-stat-label mt-2 mb-1">Game permissions</div>
+      <div class="d-flex flex-wrap gap-1 mb-3">${game.length ? game.map((p) => html`<span class="sp-chip code">${p}</span>`) : html`<span class="fs-8 text-faint">none</span>`}</div>
+      <div class="sp-stat-label mb-1">WeaponSkins unlocks</div>
+      <div class="d-flex flex-wrap gap-1">${Object.entries(D.weaponskins.itemPermissions).map(([k, v]) => {
+        const ok = !v || SP.hasAny(game, v);
+        return html`<span class="sp-pill ${ok ? 'tone-success' : 'tone-faint'}"><i class="bi bi-${ok ? 'check-lg' : 'lock-fill'}"></i>${k}</span>`;
+      })}</div></div>`;
+  }
+
+  function render() {
+    mount('#page', html`<section class="sp-shell">
+      <div class="sp-shell-head"><div><span class="sp-eyebrow">Admin</span><h1 class="sp-title">Roles &amp; permissions</h1></div>
+        <button class="btn btn-primary btn-sm" data-newrole><i class="bi bi-plus-lg me-1"></i>New role</button></div>
+      <div class="sp-rule"></div>
+      <div class="sp-shell-body"><div class="sp-locker">
+        <aside class="sp-side">${SP.adminNav('roles')}</aside>
+        <div class="min-w-0">
+          <div class="row g-3 mb-4">
+            <div class="col-xl-3"><h2 class="sp-section-title">Roles</h2>
+              <div class="sp-rows">${roles.sort((a, b) => b.weight - a.weight).map((r) => html`<button class="sp-row text-start border-0 ${r === current ? 'chosen' : ''}" data-role="${r.id}">
+                <span class="role-dot" style="--c:${r.color}"></span><span class="flex-grow-1"><span class="d-block fw-semibold">${r.name}</span><span class="sp-row-sub">weight ${r.weight}${r.system ? ' · built-in' : ''}</span></span>
+                <span class="mono fs-8 text-faint">${members(r).length}</span></button>`)}</div></div>
+            <div class="col-xl-6"><h2 class="sp-section-title">Edit role <small>${current.name}</small></h2>${editor()}</div>
+            <div class="col-xl-3"><h2 class="sp-section-title">Permission tester</h2>${testerHtml()}
+              <h2 class="sp-section-title mt-4">Members <small>${members(current).length}</small></h2>
+              <div class="sp-rows">${members(current).slice(0, 8).map((p) => html`<div class="sp-row">${SP.playerLink(p.steamId, p.name)}</div>`)}</div></div>
+          </div>
+          ${SP.modules.enabled('weaponskins') ? html`<section id="itemperms">
+            <h2 class="sp-section-title">WeaponSkins item permissions <small>mirror of [Main.ItemPermissions] in its config.toml</small></h2>
+            <div class="sp-callout mb-3"><i class="bi bi-info-circle-fill"></i><div>Empty means everyone. Keep these equal to the plugin's: the web checks them before it writes, and the game
+              re-applies its own rules when it loads the row, so a mismatch shows players options that do nothing in game.</div></div>
+            <div class="row g-2">${Object.entries(D.weaponskins.itemPermissions).map(([k, v]) => html`<div class="col-md-6 col-xl-4"><div class="sp-panel d-flex align-items-center gap-2 py-2">
+              <span class="flex-grow-1"><span class="mono d-block">${k}</span><span class="fs-8 text-faint">${itemDocs[k]}</span></span>
+              <input class="form-control form-control-sm mono" style="width:110px" value="${v}" placeholder="everyone" aria-label="${k} permission"></div></div>`)}</div>
+            <div class="text-end mt-3"><button class="btn btn-solid" data-save>Save item permissions</button></div>
+          </section>` : ''}
+        </div>
+      </div></div></section>`);
+    SP.tips();
+  }
+
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-role],[data-newrole],[data-addlink],[data-rmlink],[data-rmgame],[data-save],[data-delete]');
+    if (!t) return;
+    if (t.dataset.role) current = roles.find((r) => String(r.id) === t.dataset.role);
+    else if ('newrole' in t.dataset) { current = { id: Date.now(), name: 'New role', color: '#5aaeff', weight: 10, system: false, permissions: [], links: [], gamePermissions: [] }; roles.push(current); }
+    else if ('addlink' in t.dataset) current.links.push({ source: 'admins.group', value: D.admins.groups[0].Name });
+    else if (t.dataset.rmlink) current.links.splice(Number(t.dataset.rmlink), 1);
+    else if (t.dataset.rmgame) current.gamePermissions = current.gamePermissions.filter((g) => g !== t.dataset.rmgame);
+    else if ('save' in t.dataset) return SP.toast('Saved', 'Written to sp_roles, sp_role_permissions and sp_role_links. Members are re-evaluated at their next request.', 'tone-success');
+    else if ('delete' in t.dataset) { roles.splice(roles.indexOf(current), 1); current = roles[0]; }
+    render();
+  });
+  document.addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.dataset.perm) { current.permissions = t.checked ? [...current.permissions, t.dataset.perm] : current.permissions.filter((p) => p !== t.dataset.perm); render(); }
+    else if (t.dataset.wild) { current.permissions = t.checked ? [...current.permissions.filter((p) => !p.startsWith(t.dataset.wild.slice(0, -1))), t.dataset.wild] : current.permissions.filter((p) => p !== t.dataset.wild); render(); }
+    else if (t.dataset.link) { current.links[Number(t.dataset.link)][t.dataset.field] = t.value; if (t.dataset.field === 'source') current.links[Number(t.dataset.link)].value = ''; render(); }
+    else if (t.id === 't-player') { tester = t.value; render(); }
+    else if (t.id === 'r-color') { current.color = t.value; render(); }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.target.id === 'r-game' && e.key === 'Enter' && e.target.value.trim()) { current.gamePermissions.push(e.target.value.trim()); render(); }
+  });
+  render();
+  if (location.hash) document.querySelector(location.hash)?.scrollIntoView();
+})();
+</script>
+</body>
+</html>

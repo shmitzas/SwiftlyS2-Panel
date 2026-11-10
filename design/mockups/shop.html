@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shop · SwiftlyS2 Panel mockup</title>
+  <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/panel.css">
+  <script src="assets/js/sample-data.js"></script>
+  <script src="assets/js/panel.js"></script>
+  <style>
+    .inspect { max-width: 760px; margin: 0 auto; }
+    .hero { position: relative; display: grid; place-items: center; padding: 1.2rem 1rem .9rem; overflow: hidden; isolation: isolate;
+      background: radial-gradient(70% 90% at 50% 100%, color-mix(in srgb, var(--hue, var(--sp-accent)) 26%, transparent), transparent 70%), linear-gradient(180deg, var(--sp-tile), var(--sp-tile-deep));
+      border: 1px solid var(--sp-edge-soft); border-radius: var(--sp-radius-lg); text-align: center; }
+    .hero img { max-height: 170px; max-width: 100%; filter: drop-shadow(0 16px 18px rgba(0,0,0,.65)); }
+    .hero .sp-art { width: 8rem; } .hero .sp-art .bi { font-size: 3.3rem; }
+    .hero .bar { width: 96px; height: 3px; border-radius: var(--sp-radius-pill); background: var(--hue, var(--sp-accent)); margin: .8rem auto .4rem; }
+    .row-code { font: 500 .72rem/1.7 var(--sp-font-mono); color: var(--sp-text-faint); background: var(--sp-surface); border: 1px solid var(--sp-edge); border-radius: var(--sp-radius); padding: .5rem .7rem; overflow-x: auto; }
+    .row-code b { color: var(--sp-text-muted); font-weight: 500; }
+    .credits { display: inline-flex; align-items: center; gap: .3rem; font: 700 1.05rem var(--sp-font-display); letter-spacing: .02em; color: var(--sp-gold); }
+    .inv-art { width: 3.6rem; height: 2.6rem; display: grid; place-items: center; flex: none; }
+    .inv-art img { max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,.6)); }
+    .sp-tile-value .bi { font-size: .8em; }
+  </style>
+</head>
+<body>
+<div id="sp-top"></div>
+
+<main class="sp-container py-4">
+  <section class="sp-shell" id="shop">
+    <div class="sp-shell-head">
+      <div><span class="sp-eyebrow">ShopCore</span><h1 class="sp-title" id="title">Shop</h1></div>
+      <div class="d-flex flex-wrap gap-3 align-items-center" id="head"></div>
+    </div>
+    <div class="sp-rule"></div>
+    <div class="sp-shell-body">
+      <div class="sp-locker">
+        <aside class="sp-side" id="side"></aside>
+        <div class="min-w-0" id="content"></div>
+      </div>
+    </div>
+    <div class="sp-shell-foot">
+      <div><button class="btn btn-primary btn-sm" id="back" aria-label="Back"><i class="bi bi-chevron-left"></i></button></div>
+      <div class="sp-hint" id="hint">Pick an item</div>
+      <div class="text-end fs-8 text-faint d-none d-md-block" id="src"></div>
+    </div>
+  </section>
+</main>
+
+<div class="modal fade" id="gift" tabindex="-1" aria-labelledby="gift-title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><div><span class="sp-eyebrow">Credits</span><h2 class="sp-title fs-4 mb-0" id="gift-title">Gift credits</h2></div>
+      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+    <div class="modal-body" id="gift-body"></div>
+  </div></div>
+</div>
+
+<div id="sp-foot"></div>
+<script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script>
+(() => {
+  SP.layout('shop');
+  const { html, mount, data: D, fmt } = SP;
+  const X = SP.shop, C = X.config;
+  const sid = SP.viewer.steamId;
+  const CAT = { Abilities: ['magic', 'tone-caution'], Healings: ['heart-pulse-fill', 'tone-success'], Movement: ['wind', 'tone-info'],
+    Permissions: ['key-fill', 'tone-accent'], Sounds: ['volume-up-fill', 'tone-ct'], VIP: ['gem', 'tone-gold'], Visuals: ['palette-fill', 'tone-legend'],
+    Weapons: ['crosshair', 'tone-danger'] };
+  const catOf = (item) => X.path(item)[0];
+  const tone = (item) => (CAT[catOf(item)] ?? ['box-seam-fill', 'tone-muted'])[1];
+  const byName = (a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' });
+  // ShopCore's menus: categories and subcategories A-Z, items by price, then name.
+  const categories = [...new Set(X.items.filter((i) => i.enabled).map(catOf))].sort(byName);
+  const itemsOf = (cat, sub) => X.items.filter((i) => i.enabled && catOf(i) === cat && (sub === null || X.path(i)[1] === sub))
+    .sort((a, b) => a.price - b.price || byName(a.display_name, b.display_name));
+  const subsOf = (cat) => [...new Set(itemsOf(cat, null).map((i) => X.path(i)[1]).filter(Boolean))].sort(byName);
+
+  const tabFromHash = () => (['inventory', 'history'].includes(location.hash.slice(1)) && sid ? location.hash.slice(1) : 'buy');
+  const state = { tab: tabFromHash(), cat: null, sub: null, item: SP.param('item'), confirm: null };
+  const price = (n, sign = '') => html`<span class="credits"><i class="bi bi-coin"></i>${sign}${fmt.num(n)}</span>`;
+  const typeLine = (i) => (i.type === 'Temporary' ? `Temporary · ${X.duration(i.duration_seconds)}` : i.type);
+  const presence = sid ? X.presence(sid) : null;
+
+  function stateText(st) {
+    if (st.expired) return html`<span class="sp-pill tone-faint"><i class="bi bi-hourglass-bottom"></i>Expired ${fmt.ago(st.expireAt * 1000)}</span>`;
+    if (!st.owned) return '';
+    const left = st.unstarted ? html`<span class="sp-pill tone-info"><i class="bi bi-hourglass-split"></i>Starts when equipped</span>`
+      : st.expireAt ? html`<span class="sp-pill tone-caution"><i class="bi bi-clock"></i>${fmt.span(st.expireAt * 1000 - SP.now)} left</span>`
+      : html`<span class="sp-pill tone-gold"><i class="bi bi-infinity"></i>Permanent</span>`;
+    return html`${st.enabled ? html`<span class="sp-pill solid tone-accent">Equipped</span>` : html`<span class="sp-pill tone-accent">Unequipped</span>`}${left}`;
+  }
+
+  function head() {
+    const tabs = [['buy', 'cart-fill', 'Buy'], ['inventory', 'bag-check-fill', 'Inventory', sid ? X.owned(sid).filter((x) => x.st.owned).length : 0], ['history', 'clock-history', 'History']];
+    mount('#head', html`${sid ? html`<div class="sp-kpi tone-gold py-1"><i class="bi bi-coin"></i><div class="sp-stat"><span class="sp-stat-value fs-4">${fmt.num(X.credits(sid))}</span>
+        <span class="sp-stat-label">Credits · wallet ${C.WalletName}</span></div></div>
+        ${C.Transfer.Enabled ? html`<button class="btn btn-sp btn-sm" data-gift><i class="bi bi-gift-fill me-1"></i>Gift</button>` : ''}` : ''}
+      <div class="sp-tabs">${tabs.filter(([id]) => id === 'buy' || sid).map(([id, icon, label, n]) => html`<button class="sp-tab ${state.tab === id ? 'active' : ''}" data-tab="${id}">
+        <i class="bi bi-${icon}"></i>${label}${n ? html` <span class="count">${n}</span>` : ''}</button>`)}</div>`);
+  }
+
+  function presencePanel() {
+    if (!sid) return html`<div class="sp-panel fs-8 text-muted2"><i class="bi bi-steam me-1"></i>Browse freely. <a href="#" data-viewer="novip">Sign in through Steam</a> to see your credits and buy.</div>`;
+    if (presence.online) return html`<div class="sp-panel team tone-caution fs-8"><div class="sp-display fs-6 text-body mb-1"><span class="sp-dot live tone-success me-1"></span>On ${SP.serverShort(presence.server)}</div>
+      While you play, ShopCore and Economy hold your items and credits in memory, so buying and selling here open again once you leave.
+      In game: <span class="sp-key">!shop</span>.</div>`;
+    return html`<div class="sp-panel team tone-success fs-8"><div class="sp-display fs-6 text-body mb-1"><i class="bi bi-check2-circle me-1"></i>Off the servers</div>
+      What you buy here waits in your inventory, unequipped. Equip it in game with <span class="sp-key">!inventory</span>; a timed item's clock starts then.</div>`;
+  }
+
+  function side() {
+    const R = D.shop.rewards;
+    const inBuy = state.tab === 'buy';
+    mount('#side', html`
+      ${inBuy ? html`<button class="sp-side-item ${state.cat === null ? 'active' : ''}" data-cat=""><i class="bi bi-grid-3x3-gap-fill"></i>All items<span class="count">${X.items.filter((i) => i.enabled).length}</span></button>
+        ${categories.map((c) => html`<button class="sp-side-item ${state.cat === c ? 'active' : ''}" data-cat="${c}"><i class="bi bi-${(CAT[c] ?? ['box-seam-fill'])[0]}"></i>${c}<span class="count">${itemsOf(c, null).length}</span></button>`)}
+        <div class="sp-side-sep"></div>` : ''}
+      ${presencePanel()}
+      <div class="sp-panel fs-8 mt-2"><span class="sp-stat-label d-block mb-1">Earn credits · Shop_Rewards</span>
+        <div class="d-flex flex-wrap gap-1">${[['Kill', R.Kill], ['Headshot', R.Headshot], ['Assist', R.Assist], ['Round won', R.RoundWon], ['Match won', R.MatchWon], ['MVP', R.MVP]]
+          .map(([l, n]) => html`<span class="sp-chip">${l} <b class="text-gold">+${n}</b></span>`)}</div>
+        <div class="text-faint mt-1">With ${R.MinPlayers}+ players, not in warmup.</div></div>`);
+  }
+
+  const tile = (i) => {
+    const st = sid ? X.state(sid, i) : { owned: false };
+    const locked = sid && i.required_permission && !SP.hasAny(SP.gamePermissionsFor(sid), i.required_permission);
+    const ingame = !i.is_equipable || i.type === 'Consumable' || i.module === 'Shop_VIP';
+    return html`<button class="sp-tile rarity ${tone(i)} ${state.item === i.item_id ? 'chosen' : ''} ${locked ? 'locked' : ''}" data-item="${i.item_id}">
+      ${st.owned ? html`<span class="sp-corner"><span class="sp-pill ${st.enabled ? 'solid' : ''} tone-accent">${st.enabled ? 'Equipped' : 'Owned'}</span></span>` : ''}
+      ${i.team !== 'Any' ? html`<span class="sp-corner-l"><span class="sp-badge tone-${i.team.toLowerCase()}">${i.team} only</span></span>`
+        : ingame ? html`<span class="sp-corner-l"><span class="sp-badge tone-muted" title="Bought in game" data-bs-toggle="tooltip">In game</span></span>` : ''}
+      ${locked ? html`<span class="sp-lock"><i class="bi bi-lock-fill"></i>Needs ${i.required_permission}</span>` : ''}
+      <div class="sp-tile-thumb">${X.art(i)}</div>
+      <div class="sp-tile-type">${typeLine(i)}</div><div class="sp-tile-name" title="${i.display_name}">${i.display_name}</div>
+      <div class="sp-tile-value"><i class="bi bi-coin"></i> ${fmt.num(i.price)}</div>
+    </button>`;
+  };
+
+  function buyGrid() {
+    if (state.cat === null) {
+      return html`${categories.map((c) => { const n = itemsOf(c, null).length; return html`<h2 class="sp-section-title ${c === categories[0] ? '' : 'mt-4'}">${c} <small>${subsOf(c).join(' · ') || `${n} item${n === 1 ? '' : 's'}`}</small></h2>
+        <div class="sp-grid" style="--min:150px">${itemsOf(c, null).map(tile)}</div>`; })}`;
+    }
+    const subs = subsOf(state.cat);
+    const list = itemsOf(state.cat, state.sub);
+    return html`${subs.length ? html`<div class="sp-tabs mb-3"><button class="sp-tab ${state.sub === null ? 'active' : ''}" data-sub="">All <span class="count">${itemsOf(state.cat, null).length}</span></button>
+        ${subs.map((s) => html`<button class="sp-tab ${state.sub === s ? 'active' : ''}" data-sub="${s}">${s} <span class="count">${itemsOf(state.cat, s).length}</span></button>`)}</div>` : ''}
+      <div class="sp-grid" style="--min:150px">${list.map(tile)}</div>`;
+  }
+
+  function writes(i, kind) {
+    const id = i.item_id.toLowerCase();
+    const bal = X.credits(sid);
+    if (kind === 'buy') return html`<div class="row-code">
+      <b>balance</b> UPDATE … SET balance = balance − ${i.price} WHERE steam_id = ${sid} AND wallet_kind = '${C.WalletName}' AND balance ≥ ${i.price}<br>
+      <b>PlayerCookies</b> row locked, one key merged · "shopcore:item:owned:${id}": true<br>
+      <b>shopcore_ledger</b> purchase · ${i.price} · BalanceAfter ${bal - i.price} · PlayerId −1</div>`;
+    return html`<div class="row-code">
+      <b>PlayerCookies</b> row locked, owned checked, keys removed · shopcore:item:{owned,enabled,expireat}:${id}<br>
+      <b>balance</b> UPDATE … SET balance = balance + ${X.sellPrice(i)} WHERE steam_id = ${sid} AND wallet_kind = '${C.WalletName}'<br>
+      <b>shopcore_ledger</b> sell · ${X.sellPrice(i)} · BalanceAfter ${bal + X.sellPrice(i)} · PlayerId −1</div>`;
+  }
+
+  function inspect() {
+    const i = X.item(state.item);
+    const [cat, sub] = X.path(i);
+    const st = sid ? X.state(sid, i) : { owned: false };
+    const [okBuy, whyBuy] = X.canBuy(sid, i);
+    const [okSell, whySell] = sid ? X.canSell(sid, i) : [false, ''];
+    const confirming = state.confirm === i.item_id;
+    return html`<div class="inspect">
+      <div class="hero ${tone(i)} mb-3">${X.art(i)}<div class="bar"></div>
+        <div class="sp-tile-type">${typeLine(i)}</div><div class="sp-display fs-4">${i.display_name}</div>
+        <div class="fs-8 text-faint mt-1">${cat}${sub ? html` <i class="bi bi-chevron-right"></i> ${sub}` : ''}</div></div>
+      <dl class="sp-fields mb-3">
+        <dt>Price</dt><dd>${price(i.price)}</dd>
+        <dt>Sells for</dt><dd>${i.is_equipable && i.can_be_sold && i.type !== 'Consumable' ? html`<span class="text-success2">+${fmt.num(X.sellPrice(i))}</span>${i.sell_price === null ? html` <span class="fs-8 text-faint">· ${C.Behavior.DefaultSellRefundRatio * 100}% of the price</span>` : ''}` : html`<span class="text-faint">This item cannot be sold</span>`}</dd>
+        <dt>Duration</dt><dd>${i.type === 'Consumable' ? html`<span class="text-faint">Used up when bought</span>` : X.duration(i.duration_seconds)}</dd>
+        <dt>Team</dt><dd>${i.team === 'Any' ? 'Both teams' : html`<span class="sp-badge tone-${i.team.toLowerCase()}">${i.team}</span>`}</dd>
+        ${i.required_permission ? html`<dt>Requires</dt><dd><span class="sp-pill tone-gold"><i class="bi bi-lock-fill"></i>${i.required_permission}</span> <span class="fs-8 text-faint">in-game permission, checked by ${i.module}</span></dd>` : ''}
+        ${i.extra.GrantedPermission ? html`<dt>Grants</dt><dd><span class="sp-chip code">${i.extra.GrantedPermission}</span> <span class="fs-8 text-faint">while equipped</span></dd>` : ''}
+        ${i.extra.Group ? html`<dt>VIP group</dt><dd><span class="sp-pill tone-gold"><i class="bi bi-gem"></i>${i.extra.Group}</span></dd>` : ''}
+        <dt>Module</dt><dd class="mono fs-8 text-muted2">${i.module} · ${i.item_id}</dd>
+        ${sid && st.tracked !== false && (st.owned || st.expired) ? html`<dt>Yours</dt><dd class="d-flex flex-wrap gap-1">${stateText(st)}</dd>` : ''}
+      </dl>
+      <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
+        ${okSell ? html`<button class="btn btn-danger" data-sell="${i.item_id}"><i class="bi bi-cash-coin me-1"></i>Sell +${fmt.num(X.sellPrice(i))}</button>`
+          : st.owned && whySell ? html`<span class="fs-8 text-faint me-auto">${whySell}</span>` : ''}
+        ${okBuy ? (confirming
+            ? html`<button class="btn btn-ghost" data-cancel>Cancel</button><button class="btn btn-solid" data-buy="${i.item_id}"><i class="bi bi-check2-circle me-1"></i>Confirm · −${fmt.num(i.price)}</button>`
+            : html`<button class="btn btn-solid" data-confirm="${i.item_id}"><i class="bi bi-cart-plus-fill me-1"></i>Buy · ${fmt.num(i.price)}</button>`)
+          : whyBuy === 'Owned' ? '' : html`<button class="btn btn-sp" disabled><i class="bi bi-cart-x me-1"></i>${whyBuy}</button>`}
+      </div>
+      <div class="fs-8 text-faint text-end mt-2">In game: <span class="sp-key">!buy</span> → ${cat}${sub ? ` → ${sub}` : ''}</div>
+      ${okBuy || okSell ? html`<div class="mt-3"><span class="sp-stat-label d-block mb-1">What the panel writes · in this order</span>${writes(i, okSell && !okBuy ? 'sell' : 'buy')}</div>` : ''}
+    </div>`;
+  }
+
+  function inventory() {
+    const rows = X.owned(sid).sort((a, b) => byName(catOf(a.item), catOf(b.item)) || byName(a.item.display_name, b.item.display_name));
+    const live = rows.filter((x) => x.st.owned);
+    const gone = rows.filter((x) => x.st.expired);
+    const row = ({ item: i, st }) => {
+      const [okSell, why] = X.canSell(sid, i);
+      return html`<div class="sp-row ${st.expired ? 'opacity-50' : ''}">
+        <span class="inv-art">${X.art(i, 'sm')}</span>
+        <span class="min-w-0 flex-grow-1"><a class="d-block sp-display fs-6 text-body text-truncate" href="?item=${i.item_id}">${i.display_name}</a>
+          <span class="sp-row-sub">${X.path(i).filter(Boolean).join(' › ')}</span></span>
+        <span class="d-none d-md-flex flex-wrap gap-1 justify-content-end">${stateText(st)}</span>
+        <span class="end">${st.expired ? html`<span class="fs-8 text-faint">ShopCore removes it at its next check</span>`
+          : okSell ? html`<button class="btn btn-sp btn-sm" data-sell="${i.item_id}">Sell <span class="text-success2">+${fmt.num(X.sellPrice(i))}</span></button>`
+          : html`<span class="fs-8 text-faint" title="${why}" data-bs-toggle="tooltip">${i.can_be_sold ? 'Sell after you leave' : 'Not sellable'}</span>`}</span></div>`;
+    };
+    return html`<div class="sp-callout mb-3"><i class="bi bi-bag-check-fill"></i><div>Equip and unequip in game with <span class="sp-key">!inventory</span>: each module allows one of its items at a time and swaps them there.
+        The panel shows what your <span class="mono">PlayerCookies</span> row holds.</div></div>
+      ${live.length ? html`<div class="sp-rows">${live.map(row)}</div>` : html`<div class="sp-empty"><i class="bi bi-bag"></i>Your inventory is empty</div>`}
+      ${gone.length ? html`<h2 class="sp-section-title mt-4">Expired <small>still in the row until ShopCore sweeps it</small></h2><div class="sp-rows">${gone.map(row)}</div>` : ''}`;
+  }
+
+  function historyTab() {
+    const out = [];
+    for (const r of X.ledger(sid)) {
+      const prev = out[out.length - 1];
+      const plain = r.Action === 'credits_add' && !r.ItemId && r.PlayerId !== -1;
+      // Shop_Rewards adds a row per kill, assist and round; consecutive ones read as one line.
+      if (plain && prev?.plain && prev.oldest - r.TimestampUnixSeconds <= 900) { prev.count += 1; prev.total += r.Amount; prev.oldest = r.TimestampUnixSeconds; continue; }
+      out.push({ ...r, plain, count: 1, total: r.Amount, oldest: r.TimestampUnixSeconds });
+    }
+    const tones = { purchase: 'tone-accent', sell: 'tone-success', credits_add: 'tone-gold', credits_subtract: 'tone-danger' };
+    return html`<div class="sp-table-wrap"><table class="sp-table compact"><thead><tr><th>When</th><th>Entry</th><th class="r">Credits</th><th class="r d-none d-md-table-cell">Balance after</th><th class="r">Where</th></tr></thead><tbody>
+      ${out.map((r) => html`<tr><td class="fs-7 text-muted2" title="${fmt.date(r.TimestampUnixSeconds * 1000)}">${fmt.ago(r.TimestampUnixSeconds * 1000)}</td>
+        <td><span class="sp-pill ${tones[r.Action]}">${X.actionLabel[r.Action]}${r.count > 1 ? ` ×${r.count}` : ''}</span> ${r.ItemDisplayName ? html`<span class="ms-1">${r.ItemDisplayName}</span>` : ''}</td>
+        <td class="r sp-display fs-6 ${X.delta(r) > 0 ? 'text-success2' : 'text-danger2'}">${X.delta(r) > 0 ? '+' : '−'}${fmt.num(r.count > 1 ? r.total : r.Amount)}</td>
+        <td class="r d-none d-md-table-cell text-muted2">${fmt.num(r.BalanceAfter)}</td>
+        <td class="r">${r.PlayerId === -1 ? html`<span class="sp-badge tone-info">Web</span>` : html`<span class="sp-badge tone-muted">In game</span>`}</td></tr>`)}
+      </tbody></table></div>
+      <div class="fs-8 text-faint mt-2">From <span class="mono">shopcore_ledger</span>, which ShopCore keeps in the database with <span class="mono">Ledger.Persistence</span> on MySQL.
+        The starting balance and timed income bypass the ledger, so the balance can move between rows.</div>`;
+  }
+
+  function content() {
+    if (state.tab === 'inventory') return mount('#content', inventory());
+    if (state.tab === 'history') return mount('#content', historyTab());
+    mount('#content', state.item ? inspect() : buyGrid());
+  }
+
+  function render() {
+    head(); side(); content();
+    document.getElementById('title').textContent = { buy: state.item ? catOf(X.item(state.item)) : state.cat ?? 'Shop', inventory: 'Inventory', history: 'History' }[state.tab];
+    document.getElementById('back').disabled = !(state.item || state.cat) || state.tab !== 'buy';
+    document.getElementById('hint').textContent = state.tab !== 'buy' ? 'Credits · wallet ' + C.WalletName : state.item ? 'Buy, or go back' : 'Pick an item';
+    mount('#src', html`<span class="mono">sp_shop_items</span> · <span class="mono">PlayerCookies</span> · <span class="mono">balance</span>${state.tab === 'history' ? html` · <span class="mono">shopcore_ledger</span>` : ''}`);
+    SP.tips();
+  }
+
+  /* Mockup writes: the same rows the panel would write, kept in memory until the page reloads. */
+  const wallet = (who) => {
+    let row = D.economy.balance.find((b) => b.steam_id === who && b.wallet_kind === C.WalletName);
+    if (!row) D.economy.balance.push(row = { steam_id: who, wallet_kind: C.WalletName, balance: 0 });
+    return row;
+  };
+  const writeCookies = (who, set, unset = []) => {
+    let row = X.cookieRow(who);
+    if (!row) D.shop.PlayerCookies.push(row = { Id: Math.max(...D.shop.PlayerCookies.map((r) => r.Id)) + 1, SteamId64: who, Data: '{}' });
+    const data = JSON.parse(row.Data);
+    Object.assign(data, set);
+    unset.forEach((k) => delete data[k]);
+    row.Data = JSON.stringify(data);
+  };
+  const ledger = (who, action, amount, item = null) => D.shop.shopcore_ledger.push({ Id: Math.max(...D.shop.shopcore_ledger.map((r) => r.Id)) + 1,
+    TimestampUnixSeconds: Math.floor(SP.now / 1000), SteamId: who, PlayerId: -1, PlayerName: SP.playerName(who), Action: action, Amount: amount,
+    BalanceAfter: wallet(who).balance, ItemId: item?.item_id ?? null, ItemDisplayName: item?.display_name ?? null });
+
+  function giftForm() {
+    const T = C.Transfer;
+    const others = D.players.filter((p) => T.AllowSelfTransfer || p.steamId !== sid).sort((a, b) => byName(a.name, b.name));
+    mount('#gift-body', html`${presence.online ? html`<div class="sp-callout tone-caution mb-3"><i class="bi bi-controller"></i><div>You are on a server: Economy still holds your old balance there, so gifts from the web wait until you leave.</div></div>` : ''}
+      <form id="gift-form" class="d-flex flex-column gap-3" novalidate>
+        <div><label class="form-label" for="g-to">Player</label><select class="form-select" id="g-to">${others.map((p) => html`<option value="${p.steamId}">${p.name}</option>`)}</select></div>
+        <div><label class="form-label" for="g-amount">Credits</label><input class="form-control" id="g-amount" type="number" min="${T.MinimumAmount}" step="1" value="500">
+          <div class="form-text">Whole credits, at least ${T.MinimumAmount}. You have ${fmt.num(X.credits(sid))}.</div></div>
+        <div class="fs-8 text-faint">Same rules as <span class="sp-key">!gift</span>: Main.Credits.Transfer in shopcore.jsonc. If they are playing, it shows up when they rejoin.</div>
+        <div class="text-end"><button class="btn btn-solid" ${presence.online ? SP.raw('disabled') : ''}><i class="bi bi-send-fill me-1"></i>Send</button></div>
+      </form>`);
+  }
+
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-tab],[data-cat],[data-sub],[data-item],[data-confirm],[data-cancel],[data-buy],[data-sell],[data-gift],#back');
+    if (!t || t.disabled) return;
+    if (t.dataset.tab) { state.tab = t.dataset.tab; state.item = null; state.confirm = null; history.replaceState(null, '', state.tab === 'buy' ? location.pathname : `#${state.tab}`); }
+    else if (t.dataset.cat !== undefined) { Object.assign(state, { cat: t.dataset.cat || null, sub: null, item: null, confirm: null }); }
+    else if (t.dataset.sub !== undefined) { state.sub = t.dataset.sub || null; }
+    else if (t.dataset.item) { state.item = t.dataset.item; state.confirm = null; }
+    else if (t.dataset.confirm) { state.confirm = t.dataset.confirm; }
+    else if (t.dataset.cancel !== undefined) { state.confirm = null; }
+    else if (t.dataset.buy) {
+      const i = X.item(t.dataset.buy);
+      if (!X.canBuy(sid, i)[0]) return;
+      wallet(sid).balance -= i.price;
+      writeCookies(sid, { [`shopcore:item:owned:${i.item_id.toLowerCase()}`]: true });
+      ledger(sid, 'purchase', i.price, i);
+      state.confirm = null;
+      SP.toast('Bought', `${i.display_name} · −${fmt.num(i.price)} credits. It waits in your inventory, unequipped: equip it in game with !inventory.`, 'tone-success');
+    } else if (t.dataset.sell) {
+      const i = X.item(t.dataset.sell);
+      if (!X.canSell(sid, i)[0]) return;
+      const id = i.item_id.toLowerCase();
+      writeCookies(sid, {}, ['owned', 'enabled', 'expireat'].map((k) => `shopcore:item:${k}:${id}`));
+      wallet(sid).balance += X.sellPrice(i);
+      ledger(sid, 'sell', X.sellPrice(i), i);
+      SP.toast('Sold', `${i.display_name} · +${fmt.num(X.sellPrice(i))} credits.`, 'tone-success');
+    } else if (t.dataset.gift !== undefined) { giftForm(); bootstrap.Modal.getOrCreateInstance('#gift').show(); return; }
+    else if (t.id === 'back') { if (state.item) state.item = null; else { state.cat = null; state.sub = null; } state.confirm = null; }
+    render();
+  });
+  document.addEventListener('submit', (e) => {
+    if (e.target.id !== 'gift-form') return;
+    e.preventDefault();
+    const to = document.getElementById('g-to').value;
+    const amount = Number(document.getElementById('g-amount').value);
+    if (!Number.isInteger(amount) || amount < C.Transfer.MinimumAmount) return SP.toast('Not sent', `Use a whole number of at least ${C.Transfer.MinimumAmount}.`, 'tone-danger');
+    if (amount > X.credits(sid)) return SP.toast('Not sent', `You have ${fmt.num(X.credits(sid))} credits.`, 'tone-danger');
+    wallet(sid).balance -= amount; ledger(sid, 'credits_subtract', amount);
+    wallet(to).balance += amount; ledger(to, 'credits_add', amount);
+    bootstrap.Modal.getInstance('#gift')?.hide();
+    SP.toast('Sent', `${fmt.num(amount)} credits to ${SP.playerName(to)}.`, 'tone-success');
+    render();
+  });
+  window.addEventListener('hashchange', () => { state.tab = tabFromHash(); state.item = null; render(); });
+  if (state.item && !X.item(state.item)) state.item = null;
+  if (state.item) state.cat = catOf(X.item(state.item));
+  render();
+})();
+</script>
+</body>
+</html>

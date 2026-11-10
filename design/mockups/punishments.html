@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Punishments · SwiftlyS2 Panel mockup</title>
+  <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/panel.css">
+  <script src="assets/js/sample-data.js"></script>
+  <script src="assets/js/panel.js"></script>
+  <style>
+    .ends { min-width: 128px; }
+    .ends .sp-meter { margin-top: .3rem; }
+    .kick { white-space: pre-line; font: 500 .82rem/1.5 var(--sp-font-mono); background: color-mix(in srgb, var(--sp-danger) 8%, var(--sp-surface)); border: 1px solid color-mix(in srgb, var(--sp-danger) 30%, transparent); border-radius: var(--sp-radius); padding: .6rem .8rem; }
+    .pick { display: flex; flex-wrap: wrap; gap: .35rem; }
+  </style>
+</head>
+<body>
+<div id="sp-top"></div>
+
+<main class="sp-container py-4">
+  <section class="sp-shell">
+    <div class="sp-shell-head">
+      <div><span class="sp-eyebrow">Admins</span><h1 class="sp-title" id="title">Bans</h1></div>
+      <div class="d-flex flex-wrap gap-2 align-items-center" id="head-actions"></div>
+    </div>
+    <div class="sp-rule"></div>
+    <div class="sp-shell-body">
+      <div class="sp-locker">
+        <aside class="sp-side" id="side"></aside>
+        <div class="min-w-0">
+          <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+            <div class="sp-search position-relative" style="width:280px"><i class="bi bi-search"></i>
+              <input class="form-control" id="q" placeholder="Name, SteamID or reason" aria-label="Search punishments"></div>
+            <select class="form-select w-auto" id="scope" aria-label="Scope"></select>
+            <div class="pick ms-xl-auto" id="status"></div>
+          </div>
+          <div class="pick mb-2" id="kinds"></div>
+          <div class="sp-table-wrap"><table class="sp-table hover" id="table"></table></div>
+          <div class="d-flex justify-content-between align-items-center mt-3">
+            <span class="fs-8 text-faint" id="count"></span>
+            <nav aria-label="Pages"><ul class="pagination pagination-sm mb-0">
+              <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+              <li class="page-item active"><span class="page-link">1</span></li>
+              <li class="page-item"><a class="page-link" href="#">2</a></li>
+              <li class="page-item"><a class="page-link" href="#">3</a></li>
+              <li class="page-item"><a class="page-link" href="#">&raquo;</a></li></ul></nav>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="sp-shell-foot">
+      <div class="fs-8 text-faint">Source: <span class="mono">bans</span>, <span class="mono">sanctions</span> · times in Europe/Vilnius</div>
+      <div class="sp-hint">Click a row for the record</div>
+      <div class="text-end fs-8 text-faint">Nothing is deleted: a lift ends it now</div>
+    </div>
+  </section>
+</main>
+
+<div class="modal fade" id="record" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content" id="record-content"></div></div></div>
+<div class="modal fade" id="give" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content" id="give-content"></div></div></div>
+
+<div id="sp-foot"></div>
+<script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script>
+(() => {
+  SP.layout('punishments');
+  const { html, mount, data: D, fmt } = SP;
+  const A = SP.admins;
+  const cfg = D.admins.config;
+  const staff = SP.can('admins.bans.create');
+  const seeIp = SP.can('admins.ip.view');
+
+  const state = { tab: SP.param('tab') === 'comms' ? 'comms' : 'bans', status: 'all', kind: 'all', scope: 'all', q: '' };
+  const bans = D.admins.bans.map((b) => ({ ...b, kind: 'ban' }));
+  let comms = A.groupComms(D.admins.sanctions);
+
+  const rowsFor = (tab) => (tab === 'bans' ? bans : comms);
+  const statusOf = (r) => A.status(r);
+  const count = (list, st) => list.filter((r) => st === 'all' || statusOf(r) === st).length;
+
+  function filtered() {
+    const q = state.q.toLowerCase();
+    return rowsFor(state.tab).filter((r) =>
+      (state.status === 'all' || statusOf(r) === state.status) &&
+      (state.kind === 'all' || r.kind === state.kind) &&
+      (state.scope === 'all' || (state.scope === 'global' ? (r.GlobalBan ?? r.GlobalSanction) : !(r.GlobalBan ?? r.GlobalSanction) && r.Server === state.scope)) &&
+      (!q || r.PlayerName.toLowerCase().includes(q) || r.SteamId64.includes(q) || r.Reason.toLowerCase().includes(q) || String(r.Id).includes(q.replace('#', ''))));
+  }
+
+  function renderChrome() {
+    document.getElementById('title').textContent = state.tab === 'bans' ? 'Bans' : 'Comms';
+    mount('#side', html`
+      <button class="sp-side-item ${state.tab === 'bans' ? 'active' : ''}" data-tab="bans"><i class="bi bi-hammer"></i>Bans<span class="count">${bans.length}</span></button>
+      <button class="sp-side-item ${state.tab === 'comms' ? 'active' : ''}" data-tab="comms"><i class="bi bi-chat-left-text-fill"></i>Comms<span class="count">${comms.length}</span></button>
+      ${staff ? html`<div class="sp-side-sep"></div><div class="sp-side-label">Staff</div>
+        <button class="sp-side-item" data-give><i class="bi bi-plus-lg"></i>Give ${state.tab === 'bans' ? 'ban' : 'gag or mute'}</button>
+        <a class="sp-side-item" href="admin-admins.html#exclusions"><i class="bi bi-shield-shaded"></i>IP ban exclusions<span class="count">${D.admins.ip_ban_exclusions.length}</span></a>` : ''}
+      <div class="sp-side-sep"></div>
+      <div class="sp-panel fs-8 text-muted2 mt-1"><i class="bi bi-info-circle me-1 text-info2"></i>A punishment is <b>Active</b> until it runs out, then <b>Expired</b>; lifting it marks it
+        <b>${state.tab === 'bans' ? 'Unbanned' : 'Lifted'}</b>. Global ones apply on every server.</div>`);
+    const list = rowsFor(state.tab);
+    const lifted = state.tab === 'bans' ? 'Unbanned' : 'Lifted';
+    mount('#status', [['all', 'All'], ['active', 'Active'], ['expired', 'Expired'], ['lifted', lifted]].map(([k, l]) =>
+      html`<button class="sp-chip ${state.status === k ? 'active' : ''}" data-status="${k}">${l} <span class="text-faint">${count(list, k)}</span></button>`));
+    mount('#kinds', state.tab === 'comms' ? [['all', 'Type: All'], ['gag', 'Gags'], ['mute', 'Mutes'], ['silence', 'Silences']].map(([k, l]) =>
+      html`<button class="sp-chip ${state.kind === k ? 'active' : ''}" data-kind="${k}">${l}</button>`) : '');
+    mount('#scope', html`<option value="all">All scopes</option><option value="global" ${state.scope === 'global' ? 'selected' : ''}>All servers (global)</option>
+      ${SP.servers.slice(0, 6).map((s) => html`<option value="${s.GUID}" ${state.scope === s.GUID ? 'selected' : ''}>${SP.serverShort(s.GUID)}</option>`)}`);
+    mount('#head-actions', html`
+      <span class="sp-pill lg tone-danger"><span class="sp-dot"></span>${count(list, 'active')} active</span>
+      ${staff ? html`<button class="btn btn-danger btn-sm" data-give><i class="bi bi-plus-lg me-1"></i>Give ${state.tab === 'bans' ? 'ban' : 'gag or mute'}</button>`
+        : html`<span class="fs-8 text-faint">IP addresses are never shown publicly</span>`}`);
+  }
+
+  function renderTable() {
+    const list = filtered();
+    const comm = state.tab === 'comms';
+    mount('#table', html`<thead><tr>
+        <th>#</th>${comm ? html`<th>Type</th>` : ''}<th>Player</th><th>Reason</th><th>Length</th><th>Issued</th><th>Ends</th>
+        <th class="d-none d-xl-table-cell">Admin</th><th>Scope</th>${seeIp ? html`<th>IP</th>` : ''}<th>Status</th>${staff ? html`<th></th>` : ''}</tr></thead>
+      <tbody>${list.map((r) => {
+        const pct = A.progress(r);
+        const st = statusOf(r);
+        return html`<tr class="${st === 'active' ? '' : 'muted'}" data-id="${r.Id}">
+          <td class="mono fs-8 text-faint">#${comm && r.ids.length > 1 ? r.ids.join('+') : r.Id}</td>
+          ${comm ? html`<td>${A.kindPill(r.kind)}</td>` : ''}
+          <td>${r.SteamId64 !== '0' ? SP.playerLink(r.SteamId64, r.PlayerName) : html`<span class="sp-player">${SP.avatar('?', r.PlayerIp, '')}<span><span class="sp-player-name d-block">${r.PlayerName}</span><span class="sp-player-sub">IP only</span></span></span>`}</td>
+          <td><span class="d-flex gap-2 align-items-center">${r.Reason}${A.typeBadge(r)}</span></td>
+          <td class="mono fs-7">${A.length(r)}</td>
+          <td class="fs-7 text-muted2 text-nowrap" title="${fmt.date(r.CreatedAt)}">${fmt.ago(r.CreatedAt)}</td>
+          <td class="ends fs-7">${A.timeline(r, r.kind === 'ban' ? 'ban' : r.kind)}${pct !== null ? html`<div class="sp-meter tone-danger" style="--v:${pct}%"><i></i></div>` : ''}</td>
+          <td class="d-none d-xl-table-cell fs-7">${r.AdminSteamId64 === '0' ? html`<span class="text-faint">Console</span>` : html`<a href="profile.html?id=${r.AdminSteamId64}">${r.AdminName}</a>`}</td>
+          <td>${A.scope(r)}</td>
+          ${seeIp ? html`<td class="mono fs-8 text-muted2">${r.PlayerIp || '—'}</td>` : ''}
+          <td>${A.statusPill(r, r.kind === 'ban' ? 'ban' : r.kind)}</td>
+          ${staff ? html`<td class="text-end">${st === 'active' ? html`<button class="btn btn-success btn-sm" data-lift="${r.Id}" title="${r.kind === 'ban' ? 'Unban' : 'Lift'}" data-bs-toggle="tooltip"><i class="bi bi-unlock-fill"></i></button>` : ''}</td>` : ''}
+        </tr>`;
+      })}${list.length ? '' : html`<tr><td colspan="12"><div class="sp-empty"><i class="bi bi-shield-check"></i>Nothing to show</div></td></tr>`}</tbody>`);
+    document.getElementById('count').textContent = `Showing ${list.length} of ${rowsFor(state.tab).length} · newest first`;
+    SP.tips(document.getElementById('table'));
+  }
+
+  function kickMessage(r) {
+    const exp = r.ExpiresAt === 0 ? 'Never' : fmt.date(r.ExpiresAt);
+    return `You are banned from this server.\nReason: ${r.Reason}\nExpires at: ${exp}\nBanned by: ${r.AdminName} (${r.AdminSteamId64})`;
+  }
+
+  function openRecord(id) {
+    const r = rowsFor(state.tab).find((x) => String(x.Id) === String(id));
+    if (!r) return;
+    const st = statusOf(r);
+    const kind = r.kind === 'ban' ? 'Ban' : r.kind[0].toUpperCase() + r.kind.slice(1);
+    const sid = r.SteamId64 !== '0' ? r.SteamId64 : null;
+    const endLabel = st === 'active' ? 'Expires' : st === 'expired' ? 'Ended' : r.kind === 'ban' ? 'Unbanned' : 'Lifted';
+    mount('#record-content', html`
+      <div class="modal-header align-items-start">
+        <div><span class="sp-eyebrow">${kind} · ${(r.GlobalBan ?? r.GlobalSanction) ? 'All servers' : SP.serverShort(r.Server)}</span>
+          <h2 class="sp-title fs-3 mb-0">${kind} #${r.ids?.length > 1 ? r.ids.join(' + ') : r.Id}</h2></div>
+        <div class="d-flex gap-2 align-items-center ms-auto">${A.statusPill(r, r.kind === 'ban' ? 'ban' : r.kind)}<button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      </div>
+      <div class="modal-body">
+        <div class="row g-4">
+          <div class="col-md-5">
+            <div class="sp-panel team tone-danger d-flex gap-3 align-items-center mb-3">
+              ${SP.avatar(r.PlayerName, sid ?? r.PlayerIp, 'lg')}
+              <div class="min-w-0"><div class="sp-player-name fs-5">${r.PlayerName}</div>
+                ${sid ? html`<div class="mono fs-8 text-muted2">${sid} <button class="sp-copy" data-copy="${sid}"><i class="bi bi-copy"></i></button></div>
+                  <div class="mono fs-8 text-faint">${SP.steam.id2(sid)} · ${SP.steam.id3(sid)}</div>` : html`<div class="fs-8 text-faint">Banned by IP address alone</div>`}</div>
+            </div>
+            ${sid ? html`<div class="d-flex gap-2"><a class="btn btn-sp btn-sm" href="profile.html?id=${sid}"><i class="bi bi-person-vcard me-1"></i>Player page</a>
+              <a class="btn btn-ghost btn-sm" href="${SP.steam.url(sid)}" target="_blank" rel="noopener"><i class="bi bi-steam me-1"></i>Steam</a></div>` : ''}
+            ${A.progress(r) !== null ? html`<div class="mt-3"><div class="d-flex justify-content-between fs-8 mb-1"><span class="sp-stat-label">Served</span><span class="mono">${Math.round(A.progress(r))}%</span></div>
+              <div class="sp-meter lg tone-danger" style="--v:${A.progress(r)}%"><i></i></div></div>` : ''}
+          </div>
+          <div class="col-md-7">
+            <dl class="sp-fields">
+              <dt>Reason</dt><dd>${r.Reason}</dd>
+              <dt>Length</dt><dd>${A.length(r)}</dd>
+              <dt>Issued</dt><dd>${fmt.date(r.CreatedAt)} <span class="text-faint">· ${fmt.ago(r.CreatedAt)}</span></dd>
+              <dt>${endLabel}</dt><dd>${r.ExpiresAt === 0 ? 'Never' : fmt.date(r.ExpiresAt)} <span class="text-faint">· ${A.timeline(r, r.kind === 'ban' ? 'ban' : r.kind)}</span></dd>
+              <dt>Issued by</dt><dd>${r.AdminSteamId64 === '0' ? 'Console' : html`<a href="profile.html?id=${r.AdminSteamId64}">${r.AdminName}</a>`}</dd>
+              <dt>Scope</dt><dd>${A.scope(r)}</dd>
+              <dt>Matched by</dt><dd>${(r.BanType ?? r.SanctionType) === 2 ? 'IP address' : 'SteamID'}</dd>
+              ${seeIp ? html`<dt>IP address</dt><dd class="mono">${r.PlayerIp || '—'}</dd>` : ''}
+            </dl>
+          </div>
+        </div>
+        ${staff && r.kind === 'ban' ? html`<div class="mt-3"><span class="sp-stat-label d-block mb-1">What they see when kicked</span><div class="kick">${kickMessage(r)}</div></div>` : ''}
+      </div>
+      ${staff && st === 'active' ? html`<div class="modal-footer">
+        <span class="me-auto fs-8 text-faint">Reaches online players within ${state.tab === 'bans' ? 'Bans' : 'Comms'}.DatabaseSyncIntervalSeconds (30 s)</span>
+        <button class="btn btn-sp" data-length="${r.Id}"><i class="bi bi-hourglass-split me-1"></i>Change length</button>
+        <button class="btn btn-success" data-lift="${r.Id}"><i class="bi bi-unlock-fill me-1"></i>${r.kind === 'ban' ? 'Unban' : 'Lift'}</button></div>` : ''}`);
+    bootstrap.Modal.getOrCreateInstance('#record').show();
+  }
+
+  function lift(id) {
+    const r = rowsFor(state.tab).find((x) => String(x.Id) === String(id));
+    if (!r) return;
+    r.ExpiresAt = SP.now - 1000; r.Status = 1; r.UpdatedAt = SP.now;
+    bootstrap.Modal.getInstance('#record')?.hide();
+    SP.toast(r.kind === 'ban' ? 'Unbanned' : 'Lifted', `${r.PlayerName}: ${r.kind === 'ban' ? '1 ban(s)' : r.kind} lifted · audit log updated`, 'tone-success');
+    renderChrome(); renderTable();
+  }
+
+  function openGive() {
+    const isBan = state.tab === 'bans';
+    const durations = cfg.durations.filter((s) => s > 0).sort((a, b) => a - b).concat([0]);
+    mount('#give-content', html`
+      <div class="modal-header"><div><span class="sp-eyebrow">Admins · staff</span><h2 class="sp-title fs-3 mb-0">${isBan ? 'Give ban' : 'Give gag or mute'}</h2></div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form class="modal-body" id="give-form">
+        <div class="row g-3">
+          <div class="col-md-7"><label class="form-label" for="g-target">Player</label>
+            <input class="form-control" id="g-target" list="g-players" placeholder="Name, SteamID64 or IP address" required>
+            <datalist id="g-players">${D.players.map((p) => html`<option value="${p.steamId}">${p.name}</option>`)}</datalist>
+            <div class="form-text">Someone who left is still reached by SteamID; an IP address punishes the address.</div></div>
+          ${isBan ? '' : html`<div class="col-md-5"><label class="form-label">Type</label><div class="pick">
+            ${['gag', 'mute', 'silence'].map((k, i) => html`<input type="radio" class="btn-check" name="g-kind" id="k-${k}" value="${k}" ${i === 0 ? 'checked' : ''}><label class="btn btn-sp btn-sm" for="k-${k}">${k}</label>`)}</div></div>`}
+          <div class="col-12"><label class="form-label">Reason</label><div class="pick">
+            ${(isBan ? cfg.banReasons : cfg.commsReasons).map((r, i) => html`<input type="radio" class="btn-check" name="g-reason" id="r-${i}" value="${r}" ${i === 0 ? 'checked' : ''}><label class="btn btn-sp btn-sm" for="r-${i}">${r}</label>`)}
+          </div></div>
+          <div class="col-md-7"><label class="form-label">Length</label><div class="pick">
+            ${durations.map((s, i) => html`<input type="radio" class="btn-check" name="g-len" id="l-${i}" value="${s}" ${s === 86400 ? 'checked' : ''}><label class="btn btn-sp btn-sm" for="l-${i}">${s === 0 ? 'Permanent' : fmt.span(s * 1000)}</label>`)}
+          </div><input class="form-control form-control-sm mt-2" id="g-other" placeholder="Other length: 45m, 12h, 3d — 0 is permanent"></div>
+          <div class="col-md-5"><label class="form-label">Scope</label>
+            <select class="form-select" id="g-scope">${SP.servers.slice(0, 6).map((s) => html`<option value="${s.GUID}">This server: ${SP.serverShort(s.GUID)}</option>`)}
+              ${SP.can('admins.bans.create.global') ? html`<option value="global">All servers</option>` : ''}</select>
+            <div class="form-check form-switch mt-2"><input class="form-check-input" type="checkbox" id="g-ip"><label class="form-check-label fs-7" for="g-ip">Match by IP address</label></div></div>
+          <div class="col-12"><div class="sp-callout tone-danger" id="g-summary"></div></div>
+        </div>
+      </form>
+      <div class="modal-footer"><button class="btn btn-sp" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-danger" form="give-form" type="submit"><i class="bi bi-hammer me-1"></i>Confirm ${isBan ? 'ban' : 'sanction'}</button></div>`);
+    const form = document.getElementById('give-form');
+    const summary = () => {
+      const t = document.getElementById('g-target').value.trim();
+      const name = D.players.find((p) => p.steamId === t)?.name ?? (t || 'someone else');
+      const len = Number(form.querySelector('[name=g-len]:checked').value);
+      const other = document.getElementById('g-other').value.trim();
+      const scope = document.getElementById('g-scope');
+      const kind = isBan ? 'Ban' : form.querySelector('[name=g-kind]:checked').value;
+      mount('#g-summary', html`<i class="bi bi-hammer"></i><div><strong>${kind[0].toUpperCase() + kind.slice(1)}: ${name}</strong> · ${form.querySelector('[name=g-reason]:checked').value}
+        · ${other || (len === 0 ? 'Permanent' : fmt.span(len * 1000))} · ${scope.options[scope.selectedIndex].text}${document.getElementById('g-ip').checked ? ' · by IP' : ''}</div>`);
+    };
+    form.addEventListener('input', summary);
+    form.addEventListener('change', summary);
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      bootstrap.Modal.getInstance('#give').hide();
+      SP.toast('Saved to the database', 'Online players get it within 30 s; a new connection is checked at once.', 'tone-danger');
+    });
+    summary();
+    bootstrap.Modal.getOrCreateInstance('#give').show();
+  }
+
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-tab],[data-status],[data-kind],[data-give],[data-lift],[data-length],tr[data-id]');
+    if (!t) return;
+    if (t.dataset.tab) { state.tab = t.dataset.tab; state.kind = 'all'; renderChrome(); renderTable(); }
+    else if (t.dataset.status) { state.status = t.dataset.status; renderChrome(); renderTable(); }
+    else if (t.dataset.kind) { state.kind = t.dataset.kind; renderChrome(); renderTable(); }
+    else if ('give' in t.dataset) openGive();
+    else if (t.dataset.lift) lift(t.dataset.lift);
+    else if (t.dataset.length) SP.toast('Change length', 'The new length counts from now.', 'tone-info');
+    else if (t.dataset.id && !e.target.closest('a,button')) openRecord(t.dataset.id);
+  });
+  document.getElementById('q').addEventListener('input', (e) => { state.q = e.target.value; renderTable(); });
+  document.getElementById('scope').addEventListener('change', (e) => { state.scope = e.target.value; renderTable(); });
+  renderChrome();
+  renderTable();
+})();
+</script>
+</body>
+</html>

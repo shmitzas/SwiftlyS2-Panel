@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Northside · SwiftlyS2 Panel mockup</title>
+  <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/panel.css">
+  <script src="assets/js/sample-data.js"></script>
+  <script src="assets/js/panel.js"></script>
+</head>
+<body>
+<div id="sp-top"></div>
+
+<main class="sp-container py-4">
+  <div class="row g-4">
+    <div class="col-xl-7">
+      <section class="sp-hero">
+        <span class="sp-eyebrow">SwiftlyS2 community · since 2025</span>
+        <h1 class="sp-hero-title">Northside<br><span class="accent">CS2</span> servers</h1>
+        <p class="sp-hero-lead">Competitive 5v5, AWP, Retakes, Arenas, Surf and Deathmatch. One Steam account,
+          one rank ladder and one skin loadout across every server.</p>
+        <div class="d-flex flex-wrap gap-2 mt-4" id="hero-cta"></div>
+        <div class="sp-kpis mt-4" id="hero-kpis"></div>
+      </section>
+    </div>
+    <div class="col-xl-5" data-module="servers">
+      <section class="sp-shell h-100">
+        <div class="sp-shell-head">
+          <div><span class="sp-eyebrow"><span class="sp-dot live tone-success me-2"></span>Live now</span><h2 class="sp-title">Servers</h2></div>
+          <a class="btn btn-sp btn-sm" href="servers.html">All servers <i class="bi bi-chevron-right"></i></a>
+        </div>
+        <div class="sp-rule"></div>
+        <div class="sp-shell-body"><div class="sp-rows" id="live"></div></div>
+      </section>
+    </div>
+  </div>
+
+  <div class="row g-4 mt-1">
+    <div class="col-xl-7" data-module="ranks">
+      <section class="sp-shell h-100">
+        <div class="sp-shell-head">
+          <div><span class="sp-eyebrow" id="season-label">Ranks</span><h2 class="sp-title">Top players</h2></div>
+          <a class="btn btn-sp btn-sm" href="leaderboard.html">Leaderboard <i class="bi bi-chevron-right"></i></a>
+        </div>
+        <div class="sp-rule"></div>
+        <div class="sp-shell-body">
+          <div class="sp-podium mb-3" id="podium"></div>
+          <div class="sp-table-wrap"><table class="sp-table hover compact" id="top-rest"></table></div>
+        </div>
+      </section>
+    </div>
+    <div class="col-xl-5" data-module="admins">
+      <section class="sp-shell h-100">
+        <div class="sp-shell-head">
+          <div><span class="sp-eyebrow">Admins</span><h2 class="sp-title">Recent punishments</h2></div>
+          <a class="btn btn-sp btn-sm" href="punishments.html">All <i class="bi bi-chevron-right"></i></a>
+        </div>
+        <div class="sp-rule"></div>
+        <div class="sp-shell-body"><div class="sp-rows" id="feed"></div></div>
+      </section>
+    </div>
+  </div>
+
+  <section class="sp-shell mt-4" data-module="weaponskins">
+    <div class="sp-shell-body">
+      <div class="row g-4 align-items-center">
+        <div class="col-lg-4">
+          <span class="sp-eyebrow">WeaponSkins</span>
+          <h2 class="sp-title">Your loadout, on the web</h2>
+          <p class="text-muted2 mt-2 mb-3">Pick skins, knives, gloves, agents, music kits and pins here; they are waiting for you
+            the next time you join. Wear, pattern, StatTrak™, name tags and stickers included.</p>
+          <a class="btn btn-primary" href="skins.html" id="skins-cta"><i class="bi bi-crosshair me-1"></i>Open skin changer</a>
+          <div class="fs-8 text-faint mt-2">In game: <span class="sp-key">!ws</span> opens the same choices, <span class="sp-key">!wp</span> reloads web changes.</div>
+        </div>
+        <div class="col-lg-8"><div class="sp-grid" style="--min:140px" id="showcase"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sp-shell mt-4" data-module="shop">
+    <div class="sp-shell-body">
+      <div class="row g-4 align-items-center">
+        <div class="col-lg-4">
+          <span class="sp-eyebrow">ShopCore</span>
+          <h2 class="sp-title">Spend your credits</h2>
+          <p class="text-muted2 mt-2 mb-2" id="shop-lead"></p>
+          <div class="d-flex flex-wrap gap-1 mb-3" id="shop-earn"></div>
+          <a class="btn btn-primary" href="shop.html"><i class="bi bi-bag-fill me-1"></i>Open the shop</a>
+          <div class="fs-8 text-faint mt-2">In game: <span class="sp-key">!shop</span> to buy, <span class="sp-key">!inventory</span> to equip, <span class="sp-key">!credits</span> for your balance.</div>
+        </div>
+        <div class="col-lg-8"><div class="sp-grid" style="--min:140px" id="shop-showcase"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mt-4" data-module="vipcore">
+    <div class="row g-3" id="vip-tiers"></div>
+  </section>
+</main>
+
+<div id="sp-foot"></div>
+<script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script>
+(() => {
+  SP.layout('home');
+  const { html, mount, data: D, fmt } = SP;
+
+  document.querySelectorAll('[data-module]').forEach((el) => { if (!SP.modules.enabled(el.dataset.module)) el.remove(); });
+
+  const online = SP.servers.filter((s) => s.live.online);
+  const playing = online.reduce((n, s) => n + s.live.players, 0);
+  const slots = online.reduce((n, s) => n + s.live.maxPlayers, 0);
+  const activeBans = D.admins.bans.filter((b) => SP.admins.status(b) === 'active').length;
+  const ranked = new Set([...D.ranks.ranks_players, ...D.ranks.ranks_players_history].map((r) => r.steam_id)).size;
+
+  mount('#hero-cta', SP.viewer.steamId
+    ? html`<a class="btn btn-solid btn-lg" href="profile.html?id=${SP.viewer.steamId}"><i class="bi bi-person-vcard me-1"></i>My profile</a>
+           <a class="btn btn-sp btn-lg" href="servers.html"><i class="bi bi-play-fill me-1"></i>Play now</a>`
+    : html`<a class="btn btn-steam btn-lg" href="#" data-viewer="player"><i class="bi bi-steam me-1"></i>Sign in through Steam</a>
+           <a class="btn btn-sp btn-lg" href="servers.html"><i class="bi bi-play-fill me-1"></i>Play now</a>`);
+  mount('#hero-kpis', html`
+    <div class="sp-kpi tone-success"><i class="bi bi-people-fill"></i><div class="sp-stat"><span class="sp-stat-value">${playing}<small>/${slots}</small></span><span class="sp-stat-label">Playing now</span></div></div>
+    <div class="sp-kpi tone-info"><i class="bi bi-hdd-stack-fill"></i><div class="sp-stat"><span class="sp-stat-value">${online.length}<small>/${SP.servers.length}</small></span><span class="sp-stat-label">Servers up</span></div></div>
+    <div class="sp-kpi tone-gold"><i class="bi bi-trophy-fill"></i><div class="sp-stat"><span class="sp-stat-value">${fmt.num(ranked)}</span><span class="sp-stat-label">Ranked players</span></div></div>
+    <div class="sp-kpi tone-danger"><i class="bi bi-hammer"></i><div class="sp-stat"><span class="sp-stat-value">${activeBans}</span><span class="sp-stat-label">Active bans</span></div></div>`);
+
+  mount('#live', SP.servers.map((s) => {
+    const l = s.live;
+    const full = l.online && l.players >= l.maxPlayers;
+    return html`<div class="sp-row ${l.online ? '' : 'opacity-50'}">
+      <div class="sp-map mini ${SP.mapClass(l.map)}"><span class="sp-map-name">${SP.mapTitle(l.map)}</span></div>
+      <div class="min-w-0 flex-grow-1">
+        <div class="sp-hostname text-truncate">${s.Hostname.replace(/^Northside \|\s*/, '')}</div>
+        <div class="d-flex align-items-center gap-2 mt-1">
+          <div class="sp-meter flex-grow-1 ${full ? 'tone-caution' : ''}" style="--v:${l.online ? (l.players / l.maxPlayers) * 100 : 0}%"><i></i></div>
+          <span class="mono fs-8 text-muted2">${l.online ? `${l.players}/${l.maxPlayers}` : 'offline'}</span>
+        </div>
+      </div>
+      ${l.online
+        ? html`<a class="btn btn-primary btn-sm btn-icon" href="steam://connect/${s.IP}:${s.Port}" title="Connect ${s.IP}:${s.Port}" data-bs-toggle="tooltip"><i class="bi bi-play-fill"></i></a>`
+        : html`<span class="sp-pill tone-faint">Offline</span>`}
+    </div>`;
+  }));
+
+  const season = SP.ranks.current;
+  const label = document.getElementById('season-label');
+  if (label) label.textContent = `Season · ${SP.ranks.periodLabel(season)}`;
+  const leaders = SP.ranks.sorted(season);
+  const podiumOrder = [leaders[1], leaders[0], leaders[2]];
+  mount('#podium', podiumOrder.map((r, i) => {
+    const place = [2, 1, 3][i];
+    return html`<a class="sp-podium-card ${place === 1 ? 'first' : place === 3 ? 'third' : ''}" href="profile.html?id=${r.steam_id}">
+      <span class="sp-podium-place">${place}</span>
+      ${place === 1 ? html`<i class="bi bi-trophy-fill fs-4"></i>` : ''}
+      ${SP.avatar(r.name, r.steam_id, place === 1 ? 'lg' : '')}
+      <div class="sp-player-name">${r.name}</div>
+      ${SP.ranks.rating(r.points, place === 1 ? '' : 'sm')}
+      <div class="fs-8 text-faint mono">K/D ${fmt.kd(r.kills, r.deaths).toFixed(2)} · ${fmt.playtime(r.playtime)}</div>
+    </a>`;
+  }));
+  mount('#top-rest', html`<tbody>${leaders.slice(3, 8).map((r, i) => html`
+    <tr class="${r.steam_id === SP.viewer.steamId ? 'chosen' : ''}">
+      <td class="pos">${i + 4}</td><td>${SP.playerLink(r.steam_id, r.name)}</td>
+      <td class="r">${SP.ranks.rating(r.points, 'sm')}</td>
+      <td class="r d-none d-sm-table-cell text-muted2">${fmt.pct(r.headshots, r.kills)}% HS</td>
+    </tr>`)}</tbody>`);
+
+  const bans = D.admins.bans.map((b) => ({ ...b, kind: 'ban' }));
+  const comms = SP.admins.groupComms(D.admins.sanctions);
+  const feed = [...bans, ...comms].sort((a, b) => b.CreatedAt - a.CreatedAt).slice(0, 7);
+  mount('#feed', feed.map((r) => {
+    const icon = { ban: ['tone-danger', 'hammer'], gag: ['tone-info', 'chat-left-text-fill'], mute: ['tone-t', 'mic-mute-fill'], silence: ['tone-legend', 'volume-mute-fill'] }[r.kind];
+    const sid = r.SteamId64 !== '0' ? r.SteamId64 : null;
+    return html`<a class="sp-row" href="punishments.html?${r.kind === 'ban' ? 'tab=bans' : 'tab=comms'}">
+      <span class="sp-avatar sm ${icon[0]}" style="background:color-mix(in srgb, var(--hue) 18%, transparent)"><i class="bi bi-${icon[1]}" style="color:var(--hue)"></i></span>
+      <span class="min-w-0 flex-grow-1">
+        <span class="d-flex gap-2 align-items-center"><span class="sp-player-name">${r.PlayerName}</span>${SP.admins.typeBadge(r)}</span>
+        <span class="sp-row-sub">${r.Reason} · ${SP.admins.length(r)} · ${fmt.ago(r.CreatedAt)}</span>
+      </span>
+      <span class="end">${SP.admins.statusPill(r, r.kind === 'ban' ? 'ban' : r.kind)}</span>
+    </a>`;
+  }));
+
+  const loadout = SP.ws.loadout(2);
+  mount('#showcase', loadout.slice(0, 6).map((x) => html`
+    <div class="sp-tile rarity r-${SP.cat.rarity(x.paint?.color)} static">
+      <div class="sp-tile-thumb"><img src="${x.paint?.image ?? x.item.image}" alt="" loading="lazy"></div>
+      <div class="sp-tile-type">${x.item.name}</div>
+      <div class="sp-tile-name">${x.paint?.name ?? 'Vanilla'}${x.paint?.phase ? ` · ${x.paint.phase}` : ''}</div>
+    </div>`));
+  if (!SP.viewer.steamId) document.getElementById('skins-cta')?.setAttribute('data-viewer', 'player');
+
+  const shopItems = SP.shop.items.filter((i) => i.enabled);
+  const shopCats = new Set(shopItems.map((i) => SP.shop.path(i)[0]));
+  const R = D.shop.rewards;
+  mount('#shop-lead', html`${shopItems.length} items in ${shopCats.size} categories: tracers, smoke colours, player models, parachutes, bhop and more. Credits come from playing:`);
+  mount('#shop-earn', [['Kill', R.Kill], ['Headshot', R.Headshot], ['Round won', R.RoundWon], ['MVP', R.MVP]].map(([l, n]) => html`<span class="sp-chip">${l} <b class="text-gold">+${n}</b></span>`));
+  mount('#shop-showcase', ['red_tracer_hourly', 'model_frogman_hourly', 'pink_smoke_hourly', 'parachute_premium_weekly', 'player_color_rainbow_hourly', 'custom.ak47.ak12']
+    .map((id) => SP.shop.item(id)).filter(Boolean).map((i) => html`<a class="sp-tile rarity tone-legend" href="shop.html?item=${i.item_id}">
+      <div class="sp-tile-thumb">${SP.shop.art(i)}</div>
+      <div class="sp-tile-type">${i.type === 'Temporary' ? SP.shop.duration(i.duration_seconds) : i.type}</div>
+      <div class="sp-tile-name" title="${i.display_name}">${i.display_name}</div>
+      <div class="sp-tile-value"><i class="bi bi-coin"></i> ${fmt.num(i.price)}</div></a>`));
+
+  const tiers = { LEGEND: ['tone-legend', 'stars', 'Every perk, permanent options, reserved slot'], GOLD: ['tone-gold', 'gem', '150 HP, armour, Zeus, bhop and !ws extras'], SILVER: ['tone-muted', 'award-fill', '120 HP and armour'] };
+  mount('#vip-tiers', D.vipcore.groups.map((g) => {
+    const [tone, icon, perks] = tiers[g.name];
+    const members = D.vipcore.vip_users.filter((v) => v.group === g.name).length;
+    return html`<div class="col-md-4"><div class="sp-panel featured ${tone} h-100 d-flex gap-3 align-items-center">
+      <i class="bi bi-${icon} fs-1 text-hue"></i>
+      <div class="min-w-0"><span class="sp-eyebrow" style="color:var(--hue)">VIP · weight ${g.weight}</span>
+        <div class="sp-display fs-4">${g.name}</div><div class="fs-7 text-muted2">${perks}</div>
+        <div class="fs-8 text-faint mt-1">${members} active member${members === 1 ? '' : 's'}</div></div>
+    </div></div>`;
+  }));
+  SP.ready(() => SP.tips());
+})();
+</script>
+</body>
+</html>

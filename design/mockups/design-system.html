@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Design system · SwiftlyS2 Panel mockup</title>
+  <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/panel.css">
+  <script src="assets/js/sample-data.js"></script>
+  <script src="assets/js/panel.js"></script>
+</head>
+<body>
+<div id="sp-top"></div>
+
+<main class="sp-container py-4">
+  <section class="sp-shell mb-4">
+    <div class="sp-shell-head">
+      <div>
+        <span class="sp-eyebrow">Design system</span>
+        <h1 class="sp-title">Tokens &amp; looks</h1>
+      </div>
+      <div class="text-muted2 fs-7" style="max-width:560px">
+        CS2's menu look on the web: slate-blue surfaces and CS2's own team, rarity and rating colours, softly rounded.
+        CustomHUD's rules still hold: one accent for interaction, one job per hue, fills under labels stay <em>Soft</em> or <em>Dim</em>.
+      </div>
+    </div>
+    <div class="sp-rule"></div>
+    <div class="sp-shell-body">
+      <h2 class="sp-section-title">Hue ladders <small>Base · Strong · Half 50% · Dim 35% · Soft 18% · Wash 8% · Fade 0%</small></h2>
+      <div id="ladders" class="d-flex flex-column gap-2 mb-4"></div>
+
+      <div class="row g-4">
+        <div class="col-lg-6">
+          <h2 class="sp-section-title">Surfaces &amp; text</h2>
+          <div id="surfaces" class="sp-cols" style="--n:5"></div>
+        </div>
+        <div class="col-lg-6">
+          <h2 class="sp-section-title">Rarity <small>CS2 game data — presets never change it</small></h2>
+          <div id="rarity" class="sp-cols" style="--n:5"></div>
+        </div>
+        <div class="col-lg-6">
+          <h2 class="sp-section-title">Wear bands</h2>
+          <div class="sp-cols" style="--n:5" id="wear"></div>
+        </div>
+        <div class="col-lg-6">
+          <h2 class="sp-section-title">CS Rating bands &amp; levels</h2>
+          <div class="sp-cols" style="--n:7" id="bands"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sp-shell mb-4">
+    <div class="sp-shell-head"><div><span class="sp-eyebrow">Typography</span><h2 class="sp-title">Barlow Semi Condensed + Noto Sans</h2></div></div>
+    <div class="sp-rule"></div>
+    <div class="sp-shell-body row g-4">
+      <div class="col-md-6">
+        <span class="sp-eyebrow">Eyebrow · accent caption</span>
+        <div class="sp-title" style="font-size:2.4rem">Your rank</div>
+        <div class="sp-section-title mt-3 mb-1">Section title</div>
+        <p class="mb-2">Body copy in Noto Sans, the face CS2's own menus use. Player names are user input and always escaped:
+          <strong id="xss-sample"></strong></p>
+        <p class="text-muted2 mb-2">Muted text for secondary lines and descriptions.</p>
+        <p class="text-faint mb-0">Faint text for hints, timestamps and IDs.</p>
+      </div>
+      <div class="col-md-6">
+        <div class="sp-stat mb-3"><span class="sp-stat-value">4,212<small>kills</small></span><span class="sp-stat-label">Tabular display digits</span></div>
+        <div class="mono mb-2">76561198042137921 · STEAM_0:1:40936096 · [U:1:81872193]</div>
+        <div>In-game commands: <span class="sp-key">!ws</span> <span class="sp-key">!rank</span> <span class="sp-key">!wp</span> <span class="sp-key">sw_wp_admin</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sp-shell mb-4">
+    <div class="sp-shell-head"><div><span class="sp-eyebrow">Looks</span><h2 class="sp-title">Controls</h2></div></div>
+    <div class="sp-rule"></div>
+    <div class="sp-shell-body">
+      <h3 class="sp-section-title">Buttons</h3>
+      <div class="d-flex flex-wrap gap-2 mb-4">
+        <button class="btn btn-sp">Control</button>
+        <button class="btn btn-primary">Primary</button>
+        <button class="btn btn-solid">Solid · one per page</button>
+        <button class="btn btn-success"><i class="bi bi-check2-circle me-1"></i>Unban</button>
+        <button class="btn btn-danger"><i class="bi bi-hammer me-1"></i>Ban</button>
+        <button class="btn btn-ghost">Ghost</button>
+        <button class="btn btn-steam"><i class="bi bi-steam me-1"></i>Sign in through Steam</button>
+        <button class="btn btn-primary" disabled>Disabled</button>
+        <button class="btn btn-sp btn-sm">Small</button>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-lg-6">
+          <h3 class="sp-section-title">Pills <small>status in sentence case: Soft fill, Dim edge, hue text</small></h3>
+          <div class="d-flex flex-wrap gap-2 mb-3" id="pills"></div>
+          <h3 class="sp-section-title">Punishment states</h3>
+          <div class="d-flex flex-wrap gap-2 mb-3" id="states"></div>
+          <h3 class="sp-section-title">Badges &amp; chips</h3>
+          <div class="d-flex flex-wrap gap-2 mb-2">
+            <span class="sp-badge tone-gold"><i class="bi bi-globe2"></i>All servers</span>
+            <span class="sp-badge tone-info"><i class="bi bi-hdd-network"></i>Public 5v5</span>
+            <span class="sp-badge tone-caution">IP</span>
+            <span class="sp-badge tone-legend">Prestige 1</span>
+            <span class="sp-badge tone-success">Online</span>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button class="sp-chip active">Active (9)</button>
+            <button class="sp-chip">Expired (8)</button>
+            <span class="sp-chip code">admins.commands.ban <span class="x">&times;</span></span>
+            <span class="sp-chip code">admins.*</span>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <h3 class="sp-section-title">Tabs</h3>
+          <div class="sp-tabs mb-4">
+            <button class="sp-tab active">Rifles <span class="count">7</span></button>
+            <button class="sp-tab">Pistols <span class="count">10</span></button>
+            <button class="sp-tab">SMGs <span class="count">7</span></button>
+            <button class="sp-tab">Shotguns <span class="count">4</span></button>
+            <button class="sp-tab disabled">Heavy <span class="count">2</span></button>
+          </div>
+          <h3 class="sp-section-title">Form controls</h3>
+          <div class="row g-2">
+            <div class="col-sm-6"><label class="form-label">Reason</label>
+              <select class="form-select"><option>Hacking</option><option>Aimbot</option><option>Wallhack</option></select></div>
+            <div class="col-sm-6"><label class="form-label">Length</label>
+              <input class="form-control" value="7d" placeholder="30m, 12h, 7d or 0"></div>
+            <div class="col-sm-6"><div class="form-check form-switch mt-2"><input class="form-check-input" type="checkbox" id="sw1" checked><label class="form-check-label" for="sw1">All servers</label></div></div>
+            <div class="col-sm-6"><div class="form-check mt-2"><input class="form-check-input" type="checkbox" id="cb1" checked><label class="form-check-label" for="cb1">Match by IP address</label></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sp-shell mb-4">
+    <div class="sp-shell-head"><div><span class="sp-eyebrow">Looks</span><h2 class="sp-title">Locker parts</h2></div></div>
+    <div class="sp-rule"></div>
+    <div class="sp-shell-body">
+      <div class="sp-locker">
+        <aside class="sp-side">
+          <button class="sp-side-item active"><i class="bi bi-crosshair"></i>Weapon skins<span class="count">35</span></button>
+          <button class="sp-side-item"><i class="bi bi-scissors"></i>Knives<span class="count">20</span></button>
+          <button class="sp-side-item locked"><i class="bi bi-hand-index-thumb"></i>Gloves</button>
+          <div class="sp-side-sep"></div>
+          <button class="sp-side-item"><i class="bi bi-person-bounding-box"></i>Agents</button>
+          <button class="sp-side-item"><i class="bi bi-music-note-beamed"></i>Music kits</button>
+        </aside>
+        <div>
+          <h3 class="sp-section-title">Tiles <small>rarity glow from the foot · chosen · locked</small></h3>
+          <div class="sp-grid mb-4" style="--min:160px" id="tiles"></div>
+          <h3 class="sp-section-title">Rows</h3>
+          <div class="sp-table-wrap"><table class="sp-table hover" id="rows"></table></div>
+        </div>
+      </div>
+    </div>
+    <div class="sp-shell-foot">
+      <div><button class="btn btn-primary btn-sm"><i class="bi bi-chevron-left"></i></button></div>
+      <div class="sp-hint">Click to select</div>
+      <div class="text-end"><button class="btn btn-danger btn-sm" aria-label="Close"><i class="bi bi-x-lg"></i></button></div>
+    </div>
+  </section>
+
+  <section class="sp-shell mb-4">
+    <div class="sp-shell-head"><div><span class="sp-eyebrow">Looks</span><h2 class="sp-title">Game parts</h2></div></div>
+    <div class="sp-rule"></div>
+    <div class="sp-shell-body">
+      <div class="row g-4">
+        <div class="col-lg-7">
+          <h3 class="sp-section-title">CS Rating badges <small>Premier bands, thousands larger</small></h3>
+          <div class="d-flex flex-wrap gap-3 align-items-center mb-3" id="ratings"></div>
+          <div class="mb-4" id="rating-xl"></div>
+          <h3 class="sp-section-title">Level rings <small>Ranks_EloPoints 10-band ladder</small></h3>
+          <div class="d-flex flex-wrap gap-2 mb-4" id="levels"></div>
+          <h3 class="sp-section-title">Shop item art <small>the game's image, else the item's colour under its module's icon</small></h3>
+          <div class="d-flex flex-wrap gap-3 align-items-center mb-4" id="shop-art"></div>
+          <h3 class="sp-section-title">Wear track <small>drag it</small></h3>
+          <div class="sp-panel mb-1">
+            <div class="d-flex justify-content-between"><span class="form-label mb-0">Wear</span><span class="mono" id="wear-val">0.1342 · Minimal Wear</span></div>
+            <div class="sp-wear" id="wear-track" style="--val:.1342; --min:.1; --max:.7"><span class="out-lo"></span><span class="lit"></span><span class="out-hi"></span><span class="knob"></span>
+              <input type="range" min="0" max="1" step="0.0001" value="0.1342" aria-label="Wear"></div>
+            <div class="sp-wear-legend"><span>FN</span><span>MW</span><span>FT</span><span>WW</span><span>BS</span></div>
+          </div>
+          <div class="fs-8 text-faint mb-4">Hatched: outside AK-47 | Redline's 0.10 – 0.70 float range.</div>
+        </div>
+        <div class="col-lg-5">
+          <h3 class="sp-section-title">Map art <small>no picture: prefix ground under CS2's menu dots</small></h3>
+          <div class="row g-2 mb-4" id="maps"></div>
+          <h3 class="sp-section-title">Avatars, meters, KPIs</h3>
+          <div class="d-flex gap-2 align-items-center mb-3" id="avatars"></div>
+          <div class="sp-meter mb-2" style="--v:64%"><i></i></div>
+          <div class="sp-meter tone-success mb-3" style="--v:32%"><i></i></div>
+          <div class="sp-kpis">
+            <div class="sp-kpi"><i class="bi bi-people-fill"></i><div class="sp-stat"><span class="sp-stat-value">78<small>/122</small></span><span class="sp-stat-label">Online now</span></div></div>
+            <div class="sp-kpi tone-danger"><i class="bi bi-hammer"></i><div class="sp-stat"><span class="sp-stat-value">9</span><span class="sp-stat-label">Active bans</span></div></div>
+          </div>
+        </div>
+      </div>
+      <h3 class="sp-section-title mt-2">Rank road</h3>
+      <div class="sp-road" id="road"></div>
+    </div>
+  </section>
+
+  <section class="sp-shell mb-4">
+    <div class="sp-shell-head"><div><span class="sp-eyebrow">Looks</span><h2 class="sp-title">Feedback</h2></div></div>
+    <div class="sp-rule"></div>
+    <div class="sp-shell-body row g-3">
+      <div class="col-lg-6 d-flex flex-column gap-2">
+        <div class="sp-callout"><i class="bi bi-info-circle-fill"></i><div><strong>Applies in game after a sync.</strong> Bans reach online players within <span class="mono">Bans.DatabaseSyncIntervalSeconds</span> (30 s by default).</div></div>
+        <div class="sp-callout tone-caution"><i class="bi bi-exclamation-triangle-fill"></i><div><strong>Player is online.</strong> Ranks saves absolute values every 300 s, so edits to online players are overwritten.</div></div>
+        <div class="sp-callout tone-danger"><i class="bi bi-x-octagon-fill"></i><div><strong>Connection failed.</strong> <span class="mono">weaponskins</span>: SQLSTATE[HY000] [2002] Connection refused.</div></div>
+      </div>
+      <div class="col-lg-6 d-flex flex-wrap gap-2 align-items-start">
+        <button class="btn btn-sp" id="toast-btn">Show toast</button>
+        <button class="btn btn-sp" data-bs-toggle="modal" data-bs-target="#demo-modal">Open modal</button>
+        <button class="btn btn-sp" data-bs-toggle="tooltip" data-bs-title="Tooltips sit on the surface with a hairline">Tooltip</button>
+        <div class="sp-panel empty w-100"><i class="bi bi-inbox d-block fs-3 mb-1"></i>Empty state: nothing to show</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="modal fade" id="demo-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><div><span class="sp-eyebrow">Admins</span><h5 class="sp-title fs-4 mb-0">Ban #1408</h5></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+    <div class="modal-body">The modal is a shell: raised gradient, rounded corners, hairlines.</div>
+    <div class="modal-footer"><button class="btn btn-sp" data-bs-dismiss="modal">Cancel</button><button class="btn btn-success">Unban</button></div>
+  </div></div>
+</div>
+
+<div id="sp-foot"></div>
+<script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script>
+(() => {
+  SP.layout('');
+  const { html, mount } = SP;
+  const hues = [
+    ['Accent', '--sp-accent', '--sp-accent-strong', 'selection, the active entry, your own pick'],
+    ['Gold', '--sp-gold', '--sp-gold-deep', 'values, prices, the leader'],
+    ['Info', '--sp-info', '--sp-info-strong', 'counters, share meters'],
+    ['Success', '--sp-success', '--sp-success-strong', 'good state, lifted'],
+    ['Caution', '--sp-caution', null, 'between good and bad'],
+    ['Danger', '--sp-danger', '--sp-danger-strong', 'active punishment, destructive'],
+    ['CT', '--sp-ct', null, 'Counter-Terrorists'],
+    ['T', '--sp-t', null, 'Terrorists'],
+    ['Legend', '--sp-legend', null, 'a tier above gold'],
+  ];
+  const steps = [['Half', 50], ['Dim', 35], ['Soft', 18], ['Wash', 8], ['Fade', 0]];
+  mount('#ladders', hues.map(([name, base, strong, job]) => html`
+    <div class="row g-2 align-items-center">
+      <div class="col-md-2"><div class="sp-display fs-6 mb-0">${name}</div><div class="fs-8 text-faint">${job}</div></div>
+      <div class="col-md-10"><div class="sp-cols" style="--n:7">
+        <div><div class="sp-swatch" style="--c:var(${base})"><span>Base</span></div></div>
+        <div><div class="sp-swatch" style="--c:var(${strong || base})"><span>${strong ? 'Strong' : '—'}</span></div></div>
+        ${steps.map(([s, a]) => html`<div><div class="sp-swatch" style="--c:color-mix(in srgb, var(${base}) ${a}%, transparent)"><span>${s}</span></div></div>`)}
+      </div></div>
+    </div>`));
+  mount('#surfaces', ['bg', 'surface', 'surface-raised', 'surface-row', 'surface-hover', 'edge', 'tile', 'tile-deep', 'text-muted', 'text-faint']
+    .map((t) => html`<div><div class="sp-swatch" style="--c:var(--sp-${t})"></div><div class="fs-8 text-faint mt-1 mono">${t}</div></div>`));
+  const rarityNames = ['Consumer', 'Industrial', 'Mil-Spec', 'Restricted', 'Classified', 'Covert', 'Contraband', 'Orange', 'Yellow', 'Green'];
+  mount('#rarity', rarityNames.map((n, i) => html`<div><div class="sp-swatch" style="--c:var(--sp-rarity-${i + 1})"></div><div class="fs-8 text-faint mt-1">${i + 1} · ${n}</div></div>`));
+  mount('#wear', [['fn', 'Factory New'], ['mw', 'Minimal Wear'], ['ft', 'Field-Tested'], ['ww', 'Well-Worn'], ['bs', 'Battle-Scarred']]
+    .map(([k, n]) => html`<div><div class="sp-swatch" style="--c:var(--sp-wear-${k})"></div><div class="fs-8 text-faint mt-1">${n}</div></div>`));
+  mount('#bands', [0, 1, 2, 3, 4, 5, 6].map((b) => html`<div><div class="sp-swatch" style="--c:var(--sp-rating-${b})"></div><div class="fs-8 text-faint mt-1">${b * 5}k+</div></div>`));
+
+  mount('#xss-sample', SP.data.players.find((p) => p.name.startsWith('<')).name);
+  mount('#pills', ['accent', 'gold', 'info', 'success', 'caution', 'danger', 'ct', 't', 'legend', 'muted'].map((t) => html`<span class="sp-pill tone-${t}">${t}</span>`)
+    .concat([html`<span class="sp-pill solid tone-gold">Solid</span>`, html`<span class="sp-pill solid tone-accent">You</span>`]));
+  const bans = SP.data.admins.bans;
+  const sample = ['active', 'expired', 'lifted'].map((s) => bans.find((b) => SP.admins.status(b) === s));
+  mount('#states', [...sample.map((b) => SP.admins.statusPill(b, 'ban')), SP.admins.kindPill('gag'), SP.admins.kindPill('mute'), SP.admins.kindPill('silence')]);
+
+  const ak = SP.data.catalog.paintkits.weapon_ak47;
+  const picks = [ak.find((p) => p.paint === 282), ak.find((p) => p.paint === 180), ak.find((p) => p.paint === 302), ak.find((p) => p.rarity === 'Mil-Spec Grade'), ak.find((p) => p.rarity === 'Restricted')];
+  mount('#tiles', picks.map((p, i) => html`
+    <div class="sp-tile rarity r-${SP.cat.rarity(p.color)} ${i === 0 ? 'chosen' : ''} ${i === 4 ? 'locked' : ''}">
+      ${i === 0 ? html`<span class="sp-corner"><span class="sp-pill solid tone-accent">Equipped</span></span>` : ''}
+      ${i === 4 ? html`<span class="sp-lock"><i class="bi bi-lock-fill"></i>Requires vip</span>` : ''}
+      <div class="sp-tile-thumb"><img src="${p.image}" alt="" loading="lazy"></div>
+      <div class="sp-tile-type">${p.rarity}</div><div class="sp-tile-name">${p.name}</div><div class="sp-tile-value">#${p.paint}</div>
+    </div>`));
+  const leaders = SP.ranks.sorted(SP.ranks.current).slice(0, 4);
+  mount('#rows', html`<thead><tr><th>#</th><th>Player</th><th>XP</th><th class="r">K/D</th><th class="r">Playtime</th></tr></thead>
+    <tbody>${leaders.map((r, i) => html`<tr class="${r.steam_id === SP.data.meta.featured ? 'chosen' : ''}"><td class="pos">${i + 1}</td><td>${SP.playerLink(r.steam_id, r.name)}</td>
+      <td>${SP.ranks.rating(r.points, 'sm')}</td><td class="r">${SP.fmt.kd(r.kills, r.deaths).toFixed(2)}</td><td class="r">${SP.fmt.playtime(r.playtime)}</td></tr>`)}</tbody>`);
+
+  mount('#ratings', [148, 5210, 12310, 17880, 21045, 27500, 31240].map((p) => SP.ranks.rating(p)));
+  mount('#rating-xl', SP.ranks.rating(12310, 'xl'));
+  mount('#levels', [400, 760, 905, 1010, 1120, 1300, 1420, 1600, 1800, 2050].map((r) => SP.ranks.level(r)));
+  mount('#shop-art', ['red_smoke_hourly', 'cyan_smoke_hourly', 'team_tracer_hourly', 'player_color_rainbow_hourly', 'parachute_basic_hourly', 'flag_slot_hourly']
+    .map((id) => SP.shop.art(SP.shop.item(id))));
+  mount('#maps', ['de_mirage', 'awp_lego_2', 'aim_redline', 'surf_beginner'].map((m) => html`
+    <div class="col-6"><div class="sp-map ${SP.mapClass(m)} rounded-1"><span class="sp-map-name">${SP.mapTitle(m)}<span class="sp-map-code">${m}</span></span></div></div>`));
+  mount('#avatars', SP.data.players.slice(0, 6).map((p, i) => SP.avatar(p.name, p.steamId, ['sm', '', 'lg', '', 'sm', 'lg'][i])));
+  const fp = SP.ranks.rows(SP.ranks.current).find((r) => r.steam_id === SP.data.meta.featured);
+  mount('#road', SP.data.ranks.ladder.map((t, i) => {
+    const cur = SP.ranks.tier(fp.points).Name === t.Name;
+    const reached = fp.points >= t.Points;
+    return html`<div class="sp-road-step ${cur ? 'current' : reached ? 'reached' : ''}" style="--hue:var(--sp-rating-${i})">
+      ${cur ? html`<span class="you">You</span>` : ''}${SP.ranks.rating(t.Points, 'sm')}<span>${t.Name}</span>${reached ? '' : html`<i class="bi bi-lock-fill lock"></i>`}</div>`;
+  }));
+
+  const track = document.getElementById('wear-track');
+  track.querySelector('input').addEventListener('input', (e) => {
+    const v = Number(e.target.value);
+    track.style.setProperty('--val', v);
+    document.getElementById('wear-val').textContent = `${v.toFixed(4)} · ${SP.cat.exterior(v)[1]}`;
+  });
+  document.getElementById('toast-btn').addEventListener('click', () => SP.toast('Ban saved', 'Reaches online players within 30 s.', 'tone-success'));
+  SP.ready(() => SP.tips());
+})();
+</script>
+</body>
+</html>

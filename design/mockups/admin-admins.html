@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admins &amp; groups · SwiftlyS2 Panel mockup</title>
+  <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/panel.css">
+  <script src="assets/js/sample-data.js"></script>
+  <script src="assets/js/panel.js"></script>
+  <style>
+    .json { font: 500 .74rem/1.55 var(--sp-font-mono); color: var(--sp-text-muted); background: var(--sp-surface); border: 1px solid var(--sp-edge); border-radius: var(--sp-radius); padding: .6rem .75rem; white-space: pre-wrap; word-break: break-all; }
+    .srv { display: flex; gap: .55rem; align-items: center; padding: .35rem .2rem; border-bottom: 1px solid var(--sp-edge-soft); }
+  </style>
+</head>
+<body>
+<div id="sp-top"></div>
+<main class="sp-container py-4" id="page"></main>
+
+<div class="offcanvas offcanvas-end" tabindex="-1" id="edit" style="--bs-offcanvas-width:520px">
+  <div class="offcanvas-header align-items-start"><div><span class="sp-eyebrow" id="e-eyebrow">Admin</span><h2 class="sp-title fs-4" id="e-title"></h2></div>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button></div>
+  <div class="offcanvas-body pt-0" id="e-body"></div>
+</div>
+
+<div id="sp-foot"></div>
+<script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script>
+(() => {
+  SP.layout('admin');
+  const { html, mount, data: D, fmt } = SP;
+  const gate = SP.adminGate('admins.admins.manage');
+  if (gate) { mount('#page', gate); return; }
+
+  const A = D.admins;
+  const tab = () => (location.hash.slice(1) || 'admins');
+  const knownPerms = ['admins.*', 'admins.commands.*', 'admins.commands.admin', 'admins.commands.ban', 'admins.commands.globalban', 'admins.commands.unban',
+    'admins.commands.kick', 'admins.commands.gag', 'admins.commands.mute', 'admins.commands.silence', 'admins.commands.sessions', 'admins.commands.who',
+    'admins.commands.map', 'admins.commands.rcon', 'admins.command.admins', 'admins.command.groups', 'admins.command.reloadadmins', 'admins.chat', 'admins.notify',
+    'admins.esp.alive', 'vipcore.manage', 'economy.admin', 'shopcore.admin.credits', 'vip'];
+  const groupOf = (name) => A.groups.find((g) => g.Name.toLowerCase() === name.toLowerCase());
+  /** The plugin's rule: the highest of the admin's own immunity and their groups' that apply on the server. */
+  const effectiveImmunity = (a) => Math.max(a.Immunity, ...a.Groups.map((g) => groupOf(g)?.Immunity ?? 0));
+  const serversLabel = (list) => (list.length === SP.servers.length ? html`<span class="sp-badge tone-gold">All ${list.length}</span>` : html`<span class="sp-badge tone-info">${list.length} of ${SP.servers.length}</span>`);
+
+  function adminsTable() {
+    return html`<div class="d-flex justify-content-between align-items-center mb-2"><span class="fs-8 text-faint">Reloaded by every server within Admins.DatabaseSyncIntervalSeconds (60 s) or <span class="sp-key">!reloadadmins</span>.</span>
+      <button class="btn btn-primary btn-sm" data-new="admin"><i class="bi bi-person-plus-fill me-1"></i>Add admin</button></div>
+      <div class="sp-table-wrap"><table class="sp-table hover"><thead><tr><th>Admin</th><th>Groups</th><th class="r">Immunity</th><th>Own permissions</th><th>Servers</th><th></th></tr></thead><tbody>
+      ${A.admins.map((a) => html`<tr data-edit-admin="${a.Id}"><td>${SP.playerLink(a.SteamId64, a.Username, a.SteamId64)}</td>
+        <td>${a.Groups.map((g) => html`<span class="sp-pill tone-legend me-1">${g}</span>`)}</td>
+        <td class="r"><span class="sp-display fs-5">${effectiveImmunity(a)}</span>${a.Immunity !== effectiveImmunity(a) ? html`<div class="fs-8 text-faint">own ${a.Immunity}</div>` : ''}</td>
+        <td>${a.Permissions.length ? a.Permissions.map((p) => html`<span class="sp-chip code me-1">${p}</span>`) : html`<span class="text-faint fs-8">from groups only</span>`}</td>
+        <td>${serversLabel(a.Servers)}</td><td class="text-end"><button class="btn btn-ghost btn-sm" aria-label="Edit"><i class="bi bi-pencil-fill"></i></button></td></tr>`)}
+      </tbody></table></div>`;
+  }
+
+  function groupsTable() {
+    return html`<div class="d-flex justify-content-between align-items-center mb-2"><span class="fs-8 text-faint">Names match regardless of case. Groups must exist before admins are put in them.</span>
+      <button class="btn btn-primary btn-sm" data-new="group"><i class="bi bi-plus-lg me-1"></i>Add group</button></div>
+      <div class="sp-table-wrap"><table class="sp-table hover"><thead><tr><th>Group</th><th class="r">Immunity</th><th>Permissions</th><th>Servers</th><th class="r">Admins</th></tr></thead><tbody>
+      ${A.groups.map((g) => html`<tr><td><span class="sp-pill tone-legend">${g.Name}</span></td><td class="r sp-display fs-5">${g.Immunity}</td>
+        <td>${g.Permissions.map((p) => html`<span class="sp-chip code me-1 mb-1">${p}</span>`)}</td><td>${serversLabel(g.Servers)}</td>
+        <td class="r">${A.admins.filter((a) => a.Groups.includes(g.Name)).length}</td></tr>`)}</tbody></table></div>`;
+  }
+
+  function serversTable() {
+    return html`<div class="sp-callout mb-3"><i class="bi bi-info-circle-fill"></i><div>Each game server registers itself here on start with the GUID from its <span class="mono">data/Admins/server_id.txt</span>.
+        Display name, mode and map art are the panel's own (<span class="mono">sp_server_meta</span>); the plugin's row is never edited.</div></div>
+      <div class="sp-table-wrap"><table class="sp-table"><thead><tr><th>#</th><th>Hostname</th><th>Address</th><th>GUID</th><th>Display name</th><th class="r">Order</th></tr></thead><tbody>
+      ${SP.servers.map((s, i) => html`<tr><td class="mono fs-8 text-faint">${s.Id}</td><td class="fs-7">${s.Hostname}</td><td class="mono fs-8">${s.IP}:${s.Port}</td>
+        <td class="mono fs-8 text-muted2">${s.GUID}</td><td><input class="form-control form-control-sm" value="${SP.serverShort(s.GUID)}" aria-label="Display name"></td>
+        <td class="r"><input class="form-control form-control-sm text-end" style="width:70px" type="number" value="${i + 1}" aria-label="Order"></td></tr>`)}</tbody></table></div>`;
+  }
+
+  function exclusionsTable() {
+    return html`<div class="sp-callout tone-caution mb-3"><i class="bi bi-shield-shaded"></i><div>An excluded SteamID is held only by bans on its own SteamID, on every server: bans that reach it only through its address let it in. Gags and mutes are not affected.</div></div>
+      <form class="d-flex gap-2 mb-3" data-exclude><input class="form-control" placeholder="SteamID64 of the player who shares an address" required><button class="btn btn-primary">Exclude</button></form>
+      <div class="sp-rows">${A.ip_ban_exclusions.map((x) => html`<div class="sp-row">${SP.playerLink(x.SteamId64, x.PlayerName, x.SteamId64)}
+        <span class="fs-8 text-faint">by ${x.AdminName} · ${fmt.ago(x.CreatedAt)}</span><span class="end"><button class="btn btn-danger btn-sm">Remove</button></span></div>`)}</div>`;
+  }
+
+  function render() {
+    const t = tab();
+    const tabs = [['admins', 'Admins', A.admins.length], ['groups', 'Groups', A.groups.length], ['servers', 'Servers', SP.servers.length], ['exclusions', 'IP ban exclusions', A.ip_ban_exclusions.length]];
+    mount('#page', html`<section class="sp-shell">
+      <div class="sp-shell-head"><div><span class="sp-eyebrow">Admin · Admins plugin</span><h1 class="sp-title">Admins &amp; groups</h1></div>
+        <span class="sp-pill lg tone-muted">ImmunityMode 1 · ProtectFromLowerAccess</span></div>
+      <div class="sp-rule"></div>
+      <div class="sp-shell-body"><div class="sp-locker">
+        <aside class="sp-side">${SP.adminNav('admins')}</aside>
+        <div class="min-w-0">
+          <div class="sp-tabs mb-3">${tabs.map(([id, l, n]) => html`<a class="sp-tab ${t === id ? 'active' : ''}" href="#${id}">${l} <span class="count">${n}</span></a>`)}</div>
+          ${{ admins: adminsTable, groups: groupsTable, servers: serversTable, exclusions: exclusionsTable }[t]()}
+        </div>
+      </div></div></section>`);
+    SP.tips();
+  }
+
+  function editAdmin(a) {
+    const isNew = !a;
+    a = a ?? { Id: 0, SteamId64: '', Username: '', Permissions: [], Groups: [], Immunity: 0, Servers: [] };
+    document.getElementById('e-title').textContent = isNew ? 'New admin' : a.Username;
+    const draw = () => mount('#e-body', html`
+      <form id="admin-form">
+        <div class="row g-3">
+          <div class="col-7"><label class="form-label" for="a-name">Username</label><input class="form-control" id="a-name" value="${a.Username}" required><div class="form-text">Unique across admins.</div></div>
+          <div class="col-5"><label class="form-label" for="a-imm">Immunity</label><input class="form-control" id="a-imm" type="number" min="0" value="${a.Immunity}"></div>
+          <div class="col-12"><label class="form-label" for="a-sid">SteamID64</label><input class="form-control mono" id="a-sid" value="${a.SteamId64}" placeholder="76561198…, STEAM_0:1:… or [U:1:…]" required></div>
+          <div class="col-12"><label class="form-label">Groups</label><div class="d-flex flex-wrap gap-2">${A.groups.map((g) => html`
+            <input type="checkbox" class="btn-check" id="g-${g.Id}" data-group="${g.Name}" ${a.Groups.includes(g.Name) ? SP.raw('checked') : ''}><label class="btn btn-sp btn-sm" for="g-${g.Id}">${g.Name} <span class="text-faint">${g.Immunity}</span></label>`)}</div></div>
+          <div class="col-12"><label class="form-label" for="a-perm">Own permissions <span class="text-faint text-lowercase">(added to the groups')</span></label>
+            <div class="d-flex flex-wrap gap-1 mb-2">${a.Permissions.map((p) => html`<span class="sp-chip code">${p} <span class="x" data-rmperm="${p}">&times;</span></span>`)}</div>
+            <input class="form-control form-control-sm mono" id="a-perm" list="perm-list" placeholder="admins.commands.ban — Enter to add">
+            <datalist id="perm-list">${knownPerms.map((p) => html`<option value="${p}">`)}</datalist>
+            <div class="form-text">A key ending in <span class="mono">.*</span> grants everything under it. <span class="mono">admins.commands.*</span> does not cover <span class="mono">admins.command.admins</span>.</div></div>
+          <div class="col-12"><label class="form-label">Servers <span class="text-faint text-lowercase">(the plugin has no wildcard — “all” lists every GUID)</span></label>
+            <div class="srv"><input class="form-check-input" type="checkbox" id="srv-all" ${a.Servers.length === SP.servers.length ? SP.raw('checked') : ''}><label class="fw-semibold" for="srv-all">All servers</label></div>
+            ${SP.servers.map((s) => html`<div class="srv"><input class="form-check-input" type="checkbox" data-srv="${s.GUID}" id="s-${s.Id}" ${a.Servers.includes(s.GUID) ? SP.raw('checked') : ''}>
+              <label class="flex-grow-1 fs-7" for="s-${s.Id}">${s.Hostname}</label><span class="mono fs-8 text-faint">${s.GUID.slice(0, 8)}</span></div>`)}</div>
+          <div class="col-12"><span class="sp-stat-label d-block mb-1">Row written to admins</span>
+            <div class="json">${JSON.stringify({ SteamId64: a.SteamId64 || '…', Username: a.Username, Permissions: a.Permissions, Groups: a.Groups, Immunity: a.Immunity, Servers: a.Servers }, null, 1)}</div></div>
+        </div>
+        <div class="d-flex justify-content-between mt-3">${isNew ? html`<span></span>` : html`<button type="button" class="btn btn-danger" data-deladmin><i class="bi bi-trash3-fill me-1"></i>Remove</button>`}
+          <button class="btn btn-solid" type="submit">Save admin</button></div>
+      </form>`);
+    draw();
+    const body = document.getElementById('e-body');
+    body.onchange = (e) => {
+      const t = e.target;
+      if (t.dataset.group) a.Groups = t.checked ? [...a.Groups, t.dataset.group] : a.Groups.filter((g) => g !== t.dataset.group);
+      if (t.dataset.srv) a.Servers = t.checked ? [...a.Servers, t.dataset.srv] : a.Servers.filter((g) => g !== t.dataset.srv);
+      if (t.id === 'srv-all') a.Servers = t.checked ? SP.servers.map((s) => s.GUID) : [];
+      if (t.id === 'a-imm') a.Immunity = Number(t.value) || 0;
+      if (t.id === 'a-name') a.Username = t.value;
+      if (t.id === 'a-sid') a.SteamId64 = t.value.trim();
+      draw();
+    };
+    body.onkeydown = (e) => { if (e.target.id === 'a-perm' && e.key === 'Enter') { e.preventDefault(); if (e.target.value.trim()) { a.Permissions = [...new Set([...a.Permissions, e.target.value.trim()])]; draw(); } } };
+    body.onclick = (e) => {
+      const x = e.target.closest('[data-rmperm]');
+      if (x) { a.Permissions = a.Permissions.filter((p) => p !== x.dataset.rmperm); draw(); }
+      if (e.target.closest('[data-deladmin]')) { bootstrap.Offcanvas.getInstance('#edit').hide(); SP.toast('Admin removed', `${a.Username}: row deleted · audit log updated`, 'tone-danger'); }
+    };
+    body.onsubmit = (e) => { e.preventDefault(); bootstrap.Offcanvas.getInstance('#edit').hide(); SP.toast('Admin saved', `${a.Username || 'New admin'} · servers pick it up within 60 s`, 'tone-success'); };
+    bootstrap.Offcanvas.getOrCreateInstance('#edit').show();
+  }
+
+  window.addEventListener('hashchange', render);
+  document.addEventListener('click', (e) => {
+    const row = e.target.closest('[data-edit-admin]');
+    if (row && !e.target.closest('a')) editAdmin(structuredClone(A.admins.find((a) => String(a.Id) === row.dataset.editAdmin)));
+    if (e.target.closest('[data-new="admin"]')) editAdmin(null);
+    if (e.target.closest('[data-new="group"]')) SP.toast('Groups', 'Same editor as admins: name, immunity, permissions, servers.', 'tone-info');
+  });
+  document.addEventListener('submit', (e) => { if (e.target.matches('[data-exclude]')) { e.preventDefault(); SP.toast('Excluded', 'Bans now reach them by their SteamID only.', 'tone-success'); } });
+  render();
+})();
+</script>
+</body>
+</html>

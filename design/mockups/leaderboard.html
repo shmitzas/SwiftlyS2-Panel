@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Leaderboard · SwiftlyS2 Panel mockup</title>
+  <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/panel.css">
+  <script src="assets/js/sample-data.js"></script>
+  <script src="assets/js/panel.js"></script>
+  <style>
+    .tier { display: inline-flex; align-items: center; gap: .4rem; font: 600 .8rem var(--sp-font-display); letter-spacing: var(--sp-track-caps); text-transform: uppercase; white-space: nowrap; color: var(--hue); }
+    .tier::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--hue); }
+    .dist { display: grid; grid-template-columns: 130px 1fr 54px; gap: .75rem; align-items: center; }
+  </style>
+</head>
+<body>
+<div id="sp-top"></div>
+
+<main class="sp-container py-4">
+  <section class="sp-shell">
+    <div class="sp-shell-head">
+      <div><span class="sp-eyebrow">Ranks</span><h1 class="sp-title">Leaderboard</h1></div>
+      <div class="d-flex flex-wrap gap-2 align-items-center" id="seasons"></div>
+    </div>
+    <div class="sp-rule"></div>
+    <div class="sp-shell-body">
+      <div class="sp-locker">
+        <aside class="sp-side" id="side"></aside>
+        <div class="min-w-0" id="main"></div>
+      </div>
+    </div>
+    <div class="sp-shell-foot">
+      <div class="fs-8 text-faint" id="foot-left"></div>
+      <div class="sp-hint">Select a player to view their statistics</div>
+      <div class="text-end fs-8 text-faint">In game: <span class="sp-key">!top</span> <span class="sp-key">!rank</span></div>
+    </div>
+  </section>
+</main>
+
+<div id="sp-foot"></div>
+<script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script>
+(() => {
+  SP.layout('ranks');
+  const { html, mount, data: D, fmt } = SP;
+  const R = SP.ranks;
+  const previous = D.meta.periods.filter((p) => p !== R.current).sort((a, b) => b - a);
+  const state = { period: R.current, view: 'points' };
+  const views = [
+    ['points', 'trophy-fill', 'XP'], ['kills', 'crosshair', 'Kills'], ['playtime', 'clock-history', 'Playtime'],
+    ['elo', 'activity', '5v5 Elo', 'Ladder comp_ · Ranks_EloPoints'], ['ladder', 'bar-chart-fill', 'Rank ladder'],
+  ];
+
+  function renderChrome() {
+    mount('#seasons', state.view === 'elo'
+      ? html`<span class="sp-tab active">This season <span class="count">${R.periodLabel(R.current)}</span></span>`
+      : html`
+      <button class="sp-tab ${state.period === R.current ? 'active' : ''}" data-period="${R.current}">This season <span class="count">${R.periodLabel(R.current)}</span></button>
+      <button class="sp-tab ${state.period === 'all' ? 'active' : ''}" data-period="all">All time</button>
+      <div class="dropdown"><button class="sp-tab ${previous.includes(state.period) ? 'active' : ''}" data-bs-toggle="dropdown">
+          ${previous.includes(state.period) ? R.periodLabel(state.period) : 'Previous seasons'} <i class="bi bi-chevron-down"></i></button>
+        <ul class="dropdown-menu dropdown-menu-end"><li><h6 class="dropdown-header">Previous seasons</h6></li>
+          ${previous.map((p) => html`<li><a class="dropdown-item ${state.period === p ? 'active' : ''}" href="#" data-period="${p}">${R.periodLabel(p)}</a></li>`)}</ul></div>`);
+    mount('#side', html`${views.map(([id, icon, label, module]) => html`
+      <button class="sp-side-item ${state.view === id ? 'active' : ''}" data-view="${id}"><i class="bi bi-${icon}"></i>${label}${module ? html`<span class="count" title="${module}">mod</span>` : ''}</button>`)}
+      <div class="sp-side-sep"></div>
+      ${SP.viewer.steamId ? html`<div class="sp-panel">${(() => {
+        if (state.view === 'elo') {
+          const elo = D.ranks.ranks_elopoints.slice().sort((a, b) => b.rating - a.rating);
+          const i = elo.findIndex((r) => r.steam_id === SP.viewer.steamId);
+          return i >= 0 ? html`<span class="sp-stat-label">Your position · 5v5</span><div class="sp-stat-value">#${i + 1}<small>of ${elo.length}</small></div>
+            <div class="mt-2">${R.level(elo[i].rating)}</div>` : html`<span class="fs-8 text-faint">You have no 5v5 rating yet.</span>`;
+        }
+        const pos = R.position(SP.viewer.steamId, state.period, state.view === 'kills' || state.view === 'playtime' ? state.view : 'points');
+        const row = R.rows(state.period).find((r) => r.steam_id === SP.viewer.steamId);
+        return row ? html`<span class="sp-stat-label">Your position</span><div class="sp-stat-value">#${pos}<small>of ${R.rows(state.period).length}</small></div>
+          <div class="mt-2">${R.rating(row.points, 'sm')}</div>` : html`<span class="fs-8 text-faint">You hold no figures in this season.</span>`;
+      })()}</div>` : ''}`);
+    mount('#foot-left', state.view === 'elo'
+      ? html`Source: <span class="mono">comp_ranks_elopoints</span> · ladder <span class="mono">comp_</span>`
+      : html`Source: <span class="mono">${state.period === R.current ? 'ranks_players' : state.period === 'all' ? 'ranks_players + ranks_players_history' : 'ranks_players_history'}</span>`);
+  }
+
+  function podium(rows, value) {
+    const order = [rows[1], rows[0], rows[2]].filter(Boolean);
+    return html`<div class="sp-podium mb-3">${order.map((r) => {
+      const place = rows.indexOf(r) + 1;
+      return html`<a class="sp-podium-card ${place === 1 ? 'first' : place === 3 ? 'third' : ''}" href="profile.html?id=${r.steam_id}">
+        <span class="sp-podium-place">${place}</span>${place === 1 ? html`<i class="bi bi-trophy-fill fs-4"></i>` : ''}
+        ${SP.avatar(r.name, r.steam_id, place === 1 ? 'lg' : '')}<div class="sp-player-name">${r.name}</div>${value(r, place)}</a>`;
+    })}</div>`;
+  }
+
+  function renderBoard() {
+    const col = state.view;
+    const rows = R.sorted(state.period, col);
+    if (!rows.length) return mount('#main', html`<div class="sp-empty"><i class="bi bi-calendar-x"></i>${state.period === 0 ? 'Older figures are counted in All time.' : 'Nobody is ranked in this season.'}</div>`);
+    const val = (r) => col === 'points' ? R.rating(r.points, 'sm') : col === 'kills' ? html`<span class="sp-stat-value fs-5">${fmt.num(r.kills)}</span>` : html`<span class="sp-stat-value fs-5">${fmt.playtime(r.playtime)}</span>`;
+    mount('#main', html`${podium(rows, val)}
+      <div class="sp-table-wrap"><table class="sp-table hover">
+        <thead><tr><th>#</th><th>Player</th><th>Rank</th><th class="${col === 'points' ? 'sorted' : ''} sortable" data-view="points">XP</th>
+          <th class="r ${col === 'kills' ? 'sorted' : ''} sortable" data-view="kills">Kills</th><th class="r">K/D</th><th class="r d-none d-md-table-cell">HS</th>
+          <th class="r d-none d-lg-table-cell">Accuracy</th><th class="r d-none d-xl-table-cell">Rounds</th>
+          <th class="r ${col === 'playtime' ? 'sorted' : ''} sortable" data-view="playtime">Playtime</th></tr></thead>
+        <tbody>${rows.map((r, i) => {
+          const tier = R.tier(r.points);
+          const rounds = r.round_wins + r.round_losses;
+          return html`<tr class="${r.steam_id === SP.viewer.steamId ? 'chosen' : ''}">
+            <td class="pos">${i + 1}</td>
+            <td>${SP.playerLink(r.steam_id, r.name, r.steam_id === SP.viewer.steamId ? 'you' : '')}</td>
+            <td><span class="tier" style="--hue:${tier.Hex}">${tier.Name}</span></td>
+            <td>${R.rating(r.points, 'sm')}</td>
+            <td class="r">${fmt.num(r.kills)}</td>
+            <td class="r ${fmt.kd(r.kills, r.deaths) >= 1 ? 'text-success2' : 'text-muted2'}">${fmt.kd(r.kills, r.deaths).toFixed(2)}</td>
+            <td class="r d-none d-md-table-cell">${fmt.pct(r.headshots, r.kills)}%</td>
+            <td class="r d-none d-lg-table-cell">${fmt.pct(r.hits, r.hits + r.misses)}%</td>
+            <td class="r d-none d-xl-table-cell text-muted2">${fmt.pct(r.round_wins, rounds)}% <span class="text-faint fs-8">of ${fmt.num(rounds)}</span></td>
+            <td class="r mono fs-7">${fmt.playtime(r.playtime)}</td></tr>`;
+        })}</tbody></table></div>`);
+  }
+
+  function renderElo() {
+    const rows = D.ranks.ranks_elopoints.slice().sort((a, b) => b.rating - a.rating);
+    const name = (sid) => SP.playerName(sid);
+    mount('#main', html`
+      <div class="sp-callout mb-3"><i class="bi bi-activity"></i><div><strong>A ladder of its own.</strong> The 5v5 servers keep their Ranks tables under the <span class="mono">comp_</span> prefix and run Ranks_EloPoints,
+        which replaces core's scoring there: the exact rating lives in <span class="mono">comp_ranks_elopoints</span> and its rounded value in that ladder's points.
+        Levels are the module's 10-band <span class="mono">ranks-elo.jsonc</span> (1,000 is where an unrated player enters).</div></div>
+      ${podium(rows.map((r) => ({ ...r, name: name(r.steam_id) })), (r) => html`<div class="d-flex align-items-center gap-2">${R.level(r.rating)}<span class="sp-stat-value fs-5">${fmt.num(r.rating, 1)}</span></div>`)}
+      <div class="sp-table-wrap"><table class="sp-table hover"><thead><tr><th>#</th><th>Player</th><th>Level</th><th class="r">Rating</th><th class="r">Matches</th><th class="r">Abandons</th><th class="r d-none d-md-table-cell">Updated</th></tr></thead>
+        <tbody>${rows.map((r, i) => html`<tr class="${r.steam_id === SP.viewer.steamId ? 'chosen' : ''}">
+          <td class="pos">${i + 1}</td><td>${SP.playerLink(r.steam_id, name(r.steam_id))}</td><td>${R.level(r.rating)}</td>
+          <td class="r sp-display fs-6">${fmt.num(r.rating, 1)}</td><td class="r">${r.matches}</td>
+          <td class="r ${r.abandons ? 'text-danger2' : 'text-faint'}">${r.abandons}</td>
+          <td class="r d-none d-md-table-cell text-muted2 fs-7">${fmt.ago(fmt.sqlDate(r.updated_at))}</td></tr>`)}</tbody></table></div>`);
+  }
+
+  function renderLadder() {
+    const rows = R.rows(state.period);
+    const own = rows.find((r) => r.steam_id === SP.viewer.steamId);
+    const ladder = D.ranks.ladder;
+    mount('#main', html`
+      <h2 class="sp-section-title">Rank road <small>${ladder.length} ranks · Premier bands</small></h2>
+      <div class="sp-road mb-4">${ladder.map((t, i) => {
+        const cur = own && R.tier(own.points).Name === t.Name;
+        const reached = own && own.points >= t.Points;
+        return html`<div class="sp-road-step ${cur ? 'current' : reached ? 'reached' : ''}" style="--hue:var(--sp-rating-${i})">
+          ${cur ? html`<span class="you">You</span>` : ''}${R.rating(t.Points, 'sm')}<span>${t.Name}</span>${!own || reached ? '' : html`<i class="bi bi-lock-fill lock"></i>`}</div>`;
+      })}</div>
+      ${own ? (() => { const nx = R.next(own.points); return nx ? html`<div class="sp-panel mb-4"><div class="d-flex justify-content-between mb-2"><span class="sp-stat-label">Your progress to ${nx.Name}</span>
+        <span class="mono fs-8">${fmt.num(nx.Points - own.points)} XP to go</span></div><div class="sp-meter lg tone-accent" style="--v:${((own.points - R.tier(own.points).Points) / (nx.Points - R.tier(own.points).Points)) * 100}%"><i></i></div></div>` : ''; })() : ''}
+      <h2 class="sp-section-title">Distribution <small>${rows.length} players · ${R.periodLabel(state.period)}</small></h2>
+      <div class="d-flex flex-column gap-2">${ladder.map((t, i) => {
+        const n = rows.filter((r) => R.tier(r.points).Name === t.Name).length;
+        return html`<div class="dist"><span class="tier" style="--hue:${t.Hex}">${t.Name}</span>
+          <div class="sp-meter lg" style="--hue:var(--sp-rating-${i}); --v:${rows.length ? (n / rows.length) * 100 : 0}%"><i></i></div><span class="mono fs-8 text-end">${n}</span></div>`;
+      })}</div>
+      <div class="fs-8 text-faint mt-3">Ladder from the module settings (paste of <span class="mono">ranks.jsonc</span>); it is configuration, not database data.</div>`);
+  }
+
+  function render() {
+    renderChrome();
+    if (state.view === 'elo') renderElo();
+    else if (state.view === 'ladder') renderLadder();
+    else renderBoard();
+    SP.tips();
+  }
+
+  document.addEventListener('click', (e) => {
+    const p = e.target.closest('[data-period]');
+    if (p) { e.preventDefault(); state.period = p.dataset.period === 'all' ? 'all' : Number(p.dataset.period); render(); return; }
+    const v = e.target.closest('[data-view]');
+    if (v) { state.view = v.dataset.view; render(); }
+  });
+  render();
+})();
+</script>
+</body>
+</html>

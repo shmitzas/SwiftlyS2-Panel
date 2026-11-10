@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shop · Admin · SwiftlyS2 Panel mockup</title>
+  <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/panel.css">
+  <script src="assets/js/sample-data.js"></script>
+  <script src="assets/js/panel.js"></script>
+  <style>
+    .mini-art { width: 2.6rem; height: 1.9rem; display: inline-grid; place-items: center; vertical-align: middle; }
+    .mini-art img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .mini-art .sp-art { width: 1.9rem; } .mini-art .sp-art .bi { font-size: .85rem; }
+  </style>
+</head>
+<body>
+<div id="sp-top"></div>
+<main class="sp-container py-4" id="page"></main>
+
+<div id="sp-foot"></div>
+<script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script>
+(() => {
+  SP.layout('admin');
+  const { html, mount, data: D, fmt } = SP;
+  const gate = SP.adminGate('shop.ledger.view');
+  if (gate) { mount('#page', gate); return; }
+
+  const X = SP.shop, C = X.config;
+  const tabs = [['ledger', 'journal-text', 'Ledger', 'shop.ledger.view'], ['adjust', 'sliders', 'Credits & items', 'shop.credits.manage'], ['catalog', 'box-seam-fill', 'Catalog', 'shop.catalog']];
+  const tab = () => { const t = location.hash.slice(1); return tabs.some(([id]) => id === t) ? t : 'ledger'; };
+  const filter = { action: 'all', web: false, q: '' };
+  const byName = (a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' });
+  const tones = { purchase: 'tone-accent', sell: 'tone-success', credits_add: 'tone-gold', credits_subtract: 'tone-danger' };
+  const nowS = Math.floor(SP.now / 1000);
+
+  /** Kill rewards land as one row each; a player's consecutive ones within 15 minutes read as one line. */
+  function grouped(rows) {
+    const out = [];
+    const open = new Map();
+    for (const r of rows) {
+      const plain = r.Action === 'credits_add' && !r.ItemId && r.PlayerId !== -1;
+      const g = open.get(r.SteamId);
+      if (plain && g && g.oldest - r.TimestampUnixSeconds <= 900) { g.count += 1; g.total += r.Amount; g.oldest = r.TimestampUnixSeconds; continue; }
+      const entry = { ...r, count: 1, total: r.Amount, oldest: r.TimestampUnixSeconds };
+      out.push(entry);
+      if (plain) open.set(r.SteamId, entry); else open.delete(r.SteamId);
+    }
+    return out;
+  }
+
+  function ledgerTab() {
+    const all = X.ledger();
+    const day = all.filter((r) => nowS - r.TimestampUnixSeconds < 86400);
+    const sum = (rows, action) => rows.filter((r) => r.Action === action).reduce((n, r) => n + r.Amount, 0);
+    const rows = grouped(all.filter((r) => (filter.action === 'all' || r.Action === filter.action) && (!filter.web || r.PlayerId === -1)
+      && (!filter.q || r.PlayerName.toLowerCase().includes(filter.q) || String(r.SteamId) === filter.q || (r.ItemId ?? '').includes(filter.q))));
+    const chips = [['all', 'All'], ['purchase', 'Purchases'], ['sell', 'Sales'], ['credits_add', 'Credits added'], ['credits_subtract', 'Credits removed']];
+    return html`<div class="sp-kpis mb-3">
+        <div class="sp-kpi tone-accent"><i class="bi bi-cart-fill"></i><div class="sp-stat"><span class="sp-stat-value">${day.filter((r) => r.Action === 'purchase').length}</span><span class="sp-stat-label">Purchases · 24h</span></div></div>
+        <div class="sp-kpi tone-danger"><i class="bi bi-coin"></i><div class="sp-stat"><span class="sp-stat-value">${fmt.num(sum(day, 'purchase'))}</span><span class="sp-stat-label">Credits spent · 24h</span></div></div>
+        <div class="sp-kpi tone-gold"><i class="bi bi-coin"></i><div class="sp-stat"><span class="sp-stat-value">${fmt.num(sum(day, 'credits_add'))}</span><span class="sp-stat-label">Credits added · 24h</span></div></div>
+        <div class="sp-kpi tone-info"><i class="bi bi-globe2"></i><div class="sp-stat"><span class="sp-stat-value">${all.filter((r) => r.PlayerId === -1).length}</span><span class="sp-stat-label">Rows from the web</span></div></div>
+      </div>
+      <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+        ${chips.map(([id, l]) => html`<button class="sp-chip ${filter.action === id ? 'active' : ''}" data-action="${id}">${l}</button>`)}
+        <div class="form-check form-switch m-0 ms-2"><input class="form-check-input" type="checkbox" id="f-web" ${filter.web ? SP.raw('checked') : ''}><label class="form-check-label fs-8" for="f-web">Web only</label></div>
+        <div class="sp-search ms-auto" style="width:240px"><i class="bi bi-search"></i><input class="form-control form-control-sm" id="f-q" value="${filter.q}" placeholder="Player, SteamID or item id"></div>
+      </div>
+      <div class="sp-table-wrap"><table class="sp-table compact hover"><thead><tr><th>When</th><th>Player</th><th>Entry</th><th class="r">Credits</th><th class="r d-none d-lg-table-cell">Balance after</th><th class="r">Where</th></tr></thead><tbody>
+        ${rows.slice(0, 40).map((r) => html`<tr><td class="fs-7 text-muted2" title="${fmt.date(r.TimestampUnixSeconds * 1000)}">${fmt.ago(r.TimestampUnixSeconds * 1000)}</td>
+          <td>${SP.playerLink(String(r.SteamId), r.PlayerName)}</td>
+          <td><span class="sp-pill ${tones[r.Action]}">${X.actionLabel[r.Action]}${r.count > 1 ? ` ×${r.count}` : ''}</span>${r.ItemDisplayName ? html` <span class="ms-1">${r.ItemDisplayName}</span>` : ''}</td>
+          <td class="r sp-display fs-6 ${X.delta(r) > 0 ? 'text-success2' : 'text-danger2'}">${X.delta(r) > 0 ? '+' : '−'}${fmt.num(r.count > 1 ? r.total : r.Amount)}</td>
+          <td class="r d-none d-lg-table-cell text-muted2">${fmt.num(r.BalanceAfter)}</td>
+          <td class="r">${r.PlayerId === -1 ? html`<span class="sp-badge tone-info">Web</span>` : html`<span class="sp-badge tone-muted" title="Player slot ${r.PlayerId}">In game</span>`}</td></tr>`)}
+      </tbody></table></div>
+      <div class="d-flex justify-content-between fs-8 text-faint mt-2"><span><span class="mono">shopcore_ledger</span> · ${fmt.num(all.length)} rows · Ledger.Persistence → ${C.Ledger.Persistence.Provider} on <span class="mono">${C.Ledger.Persistence.ConnectionName}</span></span>
+        <span>The starting balance and timed income bypass the ledger.</span></div>`;
+  }
+
+  const players = [...D.players].sort((a, b) => byName(a.name, b.name));
+  const pick = { player: D.meta.featured, item: 'parachute_basic_hourly' };
+  function presencePill(sid) {
+    const p = X.presence(sid);
+    return p.online ? html`<span class="sp-pill tone-success"><span class="sp-dot live"></span>On ${SP.serverShort(p.server)}</span>`
+      : html`<span class="sp-pill tone-faint"><i class="bi bi-moon-stars"></i>Off the servers</span>`;
+  }
+
+  function adjustTab() {
+    const sid = pick.player;
+    const online = X.presence(sid).online;
+    const owned = X.owned(sid).filter((x) => x.st.owned);
+    const grantable = X.items.filter((i) => i.is_equipable && i.type !== 'Consumable' && i.module !== 'Shop_VIP').sort((a, b) => byName(a.display_name, b.display_name));
+    const canCredits = SP.can('shop.credits.manage');
+    const canItems = SP.can('shop.items.manage');
+    return html`<div class="sp-panel mb-3 d-flex flex-wrap gap-3 align-items-center">
+        <div style="min-width:240px"><label class="form-label" for="a-player">Player</label>
+          <select class="form-select" id="a-player">${players.map((p) => html`<option value="${p.steamId}" ${p.steamId === sid ? SP.raw('selected') : ''}>${p.name}</option>`)}</select></div>
+        <div class="sp-kpi tone-gold"><i class="bi bi-coin"></i><div class="sp-stat"><span class="sp-stat-value">${fmt.num(X.credits(sid))}</span><span class="sp-stat-label">Credits</span></div></div>
+        <div>${presencePill(sid)}</div>
+      </div>
+      ${online ? html`<div class="sp-callout tone-caution mb-3"><i class="bi bi-controller"></i><div><strong>${SP.playerName(sid)} is playing.</strong> Credits can still be added: Economy saves only what changed in game, so the web's credits survive, and the player sees them after rejoining.
+        Removing credits and granting, revoking or selling items wait until they leave. Until then Economy would let them spend credits already taken, and ShopCore would not see the item.</div></div>` : ''}
+      <div class="row g-3">
+        <div class="col-xl-6"><div class="sp-panel h-100 ${canCredits ? '' : 'opacity-50'}">
+          <h3 class="sp-section-title">Credits <small>like !givecredits and !removecredits</small></h3>
+          <form id="f-credits" class="d-flex flex-column gap-3" novalidate>
+            <div class="sp-tabs"><label class="sp-tab active"><input class="d-none" type="radio" name="c-op" value="add" checked><i class="bi bi-plus-lg"></i>Give</label>
+              <label class="sp-tab"><input class="d-none" type="radio" name="c-op" value="remove"><i class="bi bi-dash-lg"></i>Remove</label></div>
+            <div><label class="form-label" for="c-amount">Credits</label><input class="form-control" id="c-amount" type="number" min="1" step="1" value="500"
+              ${canCredits ? '' : SP.raw('disabled')}><div class="form-text">Whole credits. ${C.AdminAdjustments.ClampRemovalToAvailableBalance
+                ? 'Removing more than the balance takes the whole balance' : 'Removing more than the balance is refused'} (ClampRemovalToAvailableBalance).</div></div>
+            <div><label class="form-label" for="c-reason">Reason <span class="text-faint">· audit log only</span></label><input class="form-control" id="c-reason" placeholder="Tournament prize" ${canCredits ? '' : SP.raw('disabled')}></div>
+            <div class="text-end"><button class="btn btn-solid" ${canCredits ? '' : SP.raw('disabled')}><i class="bi bi-check2-circle me-1"></i>Apply</button></div>
+          </form></div></div>
+        <div class="col-xl-6"><div class="sp-panel h-100 ${canItems ? '' : 'opacity-50'}">
+          <h3 class="sp-section-title">Items <small>granted free, no ledger row</small></h3>
+          <form id="f-items" class="d-flex flex-column gap-3" novalidate>
+            <div><label class="form-label" for="i-item">Grant</label>
+              <select class="form-select" id="i-item" ${canItems ? '' : SP.raw('disabled')}>${grantable.map((i) => html`<option value="${i.item_id}" ${i.item_id === pick.item ? SP.raw('selected') : ''} ${X.state(sid, i).owned ? SP.raw('disabled') : ''}>${i.display_name}${X.state(sid, i).owned ? ' · owned' : ''}</option>`)}</select>
+              <div class="form-text">Arrives unequipped; a timed item's clock starts when it is equipped in game.</div></div>
+            <div class="text-end"><button class="btn btn-solid" ${canItems && !online ? '' : SP.raw('disabled')}><i class="bi bi-gift-fill me-1"></i>Grant</button></div>
+          </form>
+          <div class="sp-stat-label mt-3 mb-1">Owned</div>
+          <div class="sp-rows">${owned.length ? owned.map(({ item: i, st }) => html`<div class="sp-row"><span class="mini-art">${X.art(i)}</span>
+            <span class="flex-grow-1 min-w-0 text-truncate">${i.display_name} <span class="fs-8 text-faint">${st.enabled ? '· equipped' : ''}${st.unstarted ? ' · not started' : st.expireAt ? ` · ${fmt.span(st.expireAt * 1000 - SP.now)} left` : ''}</span></span>
+            <button class="btn btn-ghost btn-sm" data-revoke="${i.item_id}" ${canItems && !online ? '' : SP.raw('disabled')} title="Revoke, no refund"><i class="bi bi-x-lg"></i></button></div>`)
+            : html`<div class="sp-panel empty">Owns nothing from the shop</div>`}</div>
+        </div></div>
+      </div>
+      <div class="fs-8 text-faint mt-3">Every change goes to <span class="mono">sp_audit_log</span>. Credit changes also write a <span class="mono">shopcore_ledger</span> row with PlayerId −1, so the in-game history shows them.</div>`;
+  }
+
+  function catalogTab() {
+    const sources = D.shop.sources;
+    const webState = (i) => { const [ok, why] = X.canBuy(null, i); return ok || why === 'Sign in to buy' ? html`<span class="sp-badge tone-success">Web + game</span>` : html`<span class="sp-badge tone-muted" title="${why}" data-bs-toggle="tooltip">Game only</span>`; };
+    const items = [...X.items].sort((a, b) => byName(a.category, b.category) || a.price - b.price || byName(a.display_name, b.display_name));
+    // Items the web could ever sell: what ShopCore tracks as owned, for both teams.
+    const sellable = (m) => X.items.filter((i) => i.module === m && i.enabled && i.is_equipable && i.type !== 'Consumable' && i.team === 'Any' && m !== 'Shop_VIP').length;
+    return html`<div class="sp-callout mb-3"><i class="bi bi-info-circle-fill"></i><div>ShopCore builds its catalog in memory from what the modules register; no table holds it.
+        The panel imports the modules' item configs instead: <span class="mono">configs/plugins/ShopCore/modules/*.jsonc</span>, plus <span class="mono">configs/plugins/Shop_PlayerModels/config.jsonc</span>, which keeps its own.
+        Re-import after editing them on the server.</div></div>
+      <div class="d-flex flex-wrap gap-2 align-items-center mb-2"><span class="fs-8 text-faint">Imported ${fmt.ago(D.shop.importedAt)} · ${X.items.length} items from ${sources.length} files</span>
+        <button class="btn btn-primary btn-sm ms-auto" data-import><i class="bi bi-upload me-1"></i>Import config files</button></div>
+      <div class="sp-table-wrap mb-4"><table class="sp-table compact"><thead><tr><th>File</th><th>Module</th><th class="r">Items</th><th>Sold on the web</th></tr></thead><tbody>
+        ${sources.map((s) => html`<tr><td class="mono fs-8">${s.file}</td><td>${s.module}</td><td class="r">${s.items || html`<span class="text-faint">—</span>`}</td>
+          <td>${!s.items ? html`<span class="fs-8 text-faint">${s.module === 'Shop_Rewards' ? 'Reward amounts, shown on the shop page' : 'No items'}</span>`
+            : s.module === 'Shop_VIP' ? html`<span class="fs-8 text-faint">Never: VIPCore applies it in game</span>`
+            : !sellable(s.module) ? html`<span class="fs-8 text-faint">Never: its items take effect when bought</span>`
+            : html`<div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" data-websale="${s.module}" ${D.shop.webSale[s.module] ? SP.raw('checked') : ''} aria-label="Sell ${s.module} items on the web"></div>`}</td></tr>`)}
+      </tbody></table></div>
+      <h3 class="sp-section-title">Items <small>as imported · ShopCore's own order: category, then price</small></h3>
+      <div class="sp-table-wrap mb-4"><table class="sp-table compact"><thead><tr><th></th><th>Item</th><th>Category</th><th class="r">Price</th><th class="r">Sells for</th><th class="r">Duration</th><th>Rules</th><th>Where</th></tr></thead><tbody>
+        ${items.map((i) => html`<tr><td><span class="mini-art">${X.art(i)}</span></td><td><div>${i.display_name}</div><div class="mono fs-8 text-faint">${i.item_id}</div></td>
+          <td class="fs-7 text-muted2">${X.path(i).filter(Boolean).join(' › ')}</td><td class="r sp-display text-gold">${fmt.num(i.price)}</td>
+          <td class="r fs-7">${i.is_equipable && i.can_be_sold && i.type !== 'Consumable' ? fmt.num(X.sellPrice(i)) : html`<span class="text-faint">—</span>`}</td>
+          <td class="r fs-7">${i.type === 'Consumable' ? html`<span class="text-faint">once</span>` : X.duration(i.duration_seconds)}</td>
+          <td>${i.team !== 'Any' ? html`<span class="sp-badge tone-${i.team.toLowerCase()} me-1">${i.team}</span>` : ''}${i.required_permission ? html`<span class="sp-chip code">${i.required_permission}</span>` : ''}${i.type === 'Consumable' ? html`<span class="sp-badge tone-muted">Consumable</span>` : ''}</td>
+          <td>${webState(i)}</td></tr>`)}
+      </tbody></table></div>
+      <h3 class="sp-section-title">ShopCore settings <small>mirrored from shopcore.jsonc, which the web cannot read</small></h3>
+      <div class="sp-panel"><div class="row g-3">
+        <div class="col-md-4"><label class="form-label" for="s-wallet">Main.Credits.WalletName</label><input class="form-control mono" id="s-wallet" value="${C.WalletName}"></div>
+        <div class="col-md-4"><label class="form-label" for="s-ratio">Main.Behavior.DefaultSellRefundRatio</label><input class="form-control mono" id="s-ratio" type="number" step="0.05" min="0" max="1" value="${C.Behavior.DefaultSellRefundRatio}"></div>
+        <div class="col-md-4"><label class="form-label" for="s-min">Main.Credits.Transfer.MinimumAmount</label><input class="form-control mono" id="s-min" type="number" min="1" value="${C.Transfer.MinimumAmount}"></div>
+        <div class="col-12 d-flex flex-wrap gap-4">
+          <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="s-sell" ${C.Behavior.AllowSelling ? SP.raw('checked') : ''}><label class="form-check-label" for="s-sell">Main.Behavior.AllowSelling</label></div>
+          <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="s-gift" ${C.Transfer.Enabled ? SP.raw('checked') : ''}><label class="form-check-label" for="s-gift">Main.Credits.Transfer.Enabled</label></div>
+          <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="s-self" ${C.Transfer.AllowSelfTransfer ? SP.raw('checked') : ''}><label class="form-check-label" for="s-self">Main.Credits.Transfer.AllowSelfTransfer</label></div>
+          <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="s-clamp" ${C.AdminAdjustments.ClampRemovalToAvailableBalance ? SP.raw('checked') : ''}><label class="form-check-label" for="s-clamp">Main.Credits.AdminAdjustments.ClampRemovalToAvailableBalance</label></div>
+        </div>
+        <div class="col-12 d-flex justify-content-between align-items-center"><span class="fs-8 text-faint">Keep these equal to the server's file: they decide what the web sells, refunds and lets players gift.</span>
+          <button class="btn btn-solid" data-save>Save settings</button></div>
+      </div></div>`;
+  }
+
+  function render() {
+    const t = tab();
+    const visible = tabs.filter(([, , , perm]) => SP.can(perm));
+    const active = visible.some(([id]) => id === t) ? t : visible[0][0];
+    mount('#page', html`<section class="sp-shell">
+      <div class="sp-shell-head"><div><span class="sp-eyebrow">Admin · ShopCore</span><h1 class="sp-title">Shop</h1></div>
+        <div class="d-flex flex-wrap gap-2"><span class="sp-pill lg tone-muted">Wallet ${C.WalletName}</span><span class="sp-pill lg tone-muted">Ledger · FreeSql(${C.Ledger.Persistence.Provider})</span></div></div>
+      <div class="sp-rule"></div>
+      <div class="sp-shell-body"><div class="sp-locker">
+        <aside class="sp-side">${SP.adminNav('shop')}</aside>
+        <div class="min-w-0">
+          <div class="sp-tabs mb-3">${visible.map(([id, icon, l]) => html`<a class="sp-tab ${active === id ? 'active' : ''}" href="#${id}"><i class="bi bi-${icon}"></i>${l}</a>`)}</div>
+          ${{ ledger: ledgerTab, adjust: adjustTab, catalog: catalogTab }[active]()}
+        </div>
+      </div></div></section>`);
+    SP.tips();
+  }
+
+  /* Mockup writes, the rows the panel would write; gone on reload. */
+  const wallet = (sid) => D.economy.balance.find((b) => b.steam_id === sid && b.wallet_kind === C.WalletName) ?? (D.economy.balance.push({ steam_id: sid, wallet_kind: C.WalletName, balance: 0 }), D.economy.balance.at(-1));
+  const ledgerRow = (sid, action, amount) => D.shop.shopcore_ledger.push({ Id: Math.max(...D.shop.shopcore_ledger.map((r) => r.Id)) + 1, TimestampUnixSeconds: nowS, SteamId: sid,
+    PlayerId: -1, PlayerName: SP.playerName(sid), Action: action, Amount: amount, BalanceAfter: wallet(sid).balance, ItemId: null, ItemDisplayName: null });
+  const editCookies = (sid, change) => {
+    let row = X.cookieRow(sid);
+    if (!row) D.shop.PlayerCookies.push(row = { Id: Math.max(...D.shop.PlayerCookies.map((r) => r.Id)) + 1, SteamId64: sid, Data: '{}' });
+    const data = JSON.parse(row.Data); change(data); row.Data = JSON.stringify(data);
+  };
+
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-action],[data-revoke],[data-import],[data-save],label.sp-tab');
+    if (!t) return;
+    if (t.dataset.action) { filter.action = t.dataset.action; render(); }
+    else if (t.dataset.revoke) {
+      const i = X.item(t.dataset.revoke);
+      editCookies(pick.player, (d) => ['owned', 'enabled', 'expireat'].forEach((k) => delete d[`shopcore:item:${k}:${i.item_id.toLowerCase()}`]));
+      SP.toast('Revoked', `${i.display_name} · ${SP.playerName(pick.player)} · no refund`, 'tone-danger'); render();
+    } else if (t.dataset.import !== undefined) { SP.toast('Import', 'Choose the .jsonc files; the panel shows what changed before saving.', 'tone-info'); }
+    else if (t.dataset.save !== undefined) {
+      const v = (id) => document.getElementById(id), walletName = v('s-wallet').value.trim(), ratio = Number(v('s-ratio').value), min = Number(v('s-min').value);
+      if (!walletName || !(ratio >= 0 && ratio <= 1) || !Number.isInteger(min) || min < 1) return SP.toast('Not saved', 'A wallet name, a refund ratio from 0 to 1 and a whole minimum gift from 1.', 'tone-danger');
+      C.WalletName = walletName;
+      Object.assign(C.Behavior, { DefaultSellRefundRatio: ratio, AllowSelling: v('s-sell').checked });
+      Object.assign(C.Transfer, { MinimumAmount: min, Enabled: v('s-gift').checked, AllowSelfTransfer: v('s-self').checked });
+      C.AdminAdjustments.ClampRemovalToAvailableBalance = v('s-clamp').checked;
+      SP.toast('Saved', 'ShopCore settings mirrored', 'tone-success'); render();
+    }
+    else if (t.matches('label.sp-tab')) { t.parentElement.querySelectorAll('.sp-tab').forEach((x) => x.classList.toggle('active', x === t)); }
+  });
+  document.addEventListener('change', (e) => {
+    if (e.target.id === 'a-player') { pick.player = e.target.value; render(); }
+    if (e.target.id === 'i-item') pick.item = e.target.value;
+    if (e.target.id === 'f-web') { filter.web = e.target.checked; render(); }
+    if (e.target.dataset.websale) { D.shop.webSale[e.target.dataset.websale] = e.target.checked; SP.toast('Saved', `${e.target.dataset.websale}: ${e.target.checked ? 'sold on the web too' : 'game only'}`, 'tone-success'); render(); }
+  });
+  document.addEventListener('input', (e) => {
+    if (e.target.id === 'f-q') { filter.q = e.target.value.trim().toLowerCase(); const pos = e.target.selectionStart; render(); const q = document.getElementById('f-q'); q.focus(); q.setSelectionRange(pos, pos); }
+  });
+  document.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const sid = pick.player;
+    const online = X.presence(sid).online;
+    if (e.target.id === 'f-credits') {
+      const op = e.target.querySelector('input[name="c-op"]:checked').value;
+      const amount = Number(document.getElementById('c-amount').value);
+      if (!Number.isInteger(amount) || amount < 1) return SP.toast('Not applied', 'Use a whole number of credits.', 'tone-danger');
+      if (op === 'remove' && online) return SP.toast('Not applied', `${SP.playerName(sid)} is playing: remove credits after they leave.`, 'tone-caution');
+      const balance = X.credits(sid);
+      if (op === 'remove' && balance <= 0) return SP.toast('Not applied', `${SP.playerName(sid)} has no credits.`, 'tone-caution');
+      if (op === 'remove' && amount > balance && !C.AdminAdjustments.ClampRemovalToAvailableBalance) return SP.toast('Not applied', `${SP.playerName(sid)} has only ${fmt.num(balance)} credits.`, 'tone-caution');
+      const taken = op === 'remove' ? Math.min(amount, balance) : amount;
+      wallet(sid).balance += op === 'add' ? taken : -taken;
+      ledgerRow(sid, op === 'add' ? 'credits_add' : 'credits_subtract', taken);
+      SP.toast(op === 'add' ? 'Credits given' : 'Credits removed', `${op === 'add' ? '+' : '−'}${fmt.num(taken)} · ${SP.playerName(sid)} now has ${fmt.num(wallet(sid).balance)}`, 'tone-success');
+      render();
+    }
+    if (e.target.id === 'f-items') {
+      const i = X.item(document.getElementById('i-item').value);
+      if (online) return;
+      editCookies(sid, (d) => { d[`shopcore:item:owned:${i.item_id.toLowerCase()}`] = true; });
+      SP.toast('Granted', `${i.display_name} · ${SP.playerName(sid)} · unequipped`, 'tone-success');
+      render();
+    }
+  });
+  window.addEventListener('hashchange', render);
+  render();
+})();
+</script>
+</body>
+</html>

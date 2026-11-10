@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Player · SwiftlyS2 Panel mockup</title>
+  <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/panel.css">
+  <script src="assets/js/sample-data.js"></script>
+  <script src="assets/js/panel.js"></script>
+  <style>
+    .p-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 1.4rem; align-items: center; }
+    .p-name { font: 700 clamp(1.8rem, 1.2rem + 1.6vw, 2.6rem)/1 var(--sp-font-display); letter-spacing: .01em; overflow-wrap: anywhere; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .5rem; }
+    .stat-grid .sp-panel { padding: .75rem .85rem; }
+    .w-icon { width: 76px; height: 30px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,.6)); }
+    .stickers img { width: 26px; height: 26px; object-fit: contain; }
+    .nametag { font: italic 600 .8rem var(--sp-font-display); letter-spacing: .02em; color: var(--sp-gold); }
+    @media (max-width: 767.98px) { .p-head { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div id="sp-top"></div>
+
+<main class="sp-container py-4" id="page"></main>
+
+<div id="sp-foot"></div>
+<script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script>
+(() => {
+  SP.layout('');
+  const { html, mount, data: D, fmt } = SP;
+  const R = SP.ranks, A = SP.admins;
+
+  const q = SP.param('q');
+  if (q) {
+    const needle = q.trim().toLowerCase();
+    const hits = D.players.filter((p) => p.name.toLowerCase().includes(needle) || p.steamId === needle);
+    mount('#page', html`<section class="sp-shell"><div class="sp-shell-head"><div><span class="sp-eyebrow">Search</span><h1 class="sp-title">Players matching “${q}”</h1></div></div>
+      <div class="sp-rule"></div><div class="sp-shell-body"><div class="sp-rows">${hits.length ? hits.map((p) => html`<a class="sp-row" href="profile.html?id=${p.steamId}">
+        ${SP.avatar(p.name, p.steamId)}<span class="flex-grow-1"><span class="sp-player-name d-block">${p.name}</span><span class="sp-player-sub">${p.steamId}</span></span><i class="bi bi-chevron-right text-faint"></i></a>`)
+        : html`<div class="sp-empty"><i class="bi bi-search"></i>No player found. A SteamID64, STEAM_0:… or [U:1:…] also works.</div>`}</div>
+      <div class="fs-8 text-faint mt-3">Searches names from Ranks, Admins sessions and punishments; an exact SteamID opens the profile directly.</div></div></section>`);
+    return;
+  }
+
+  const sid = SP.param('id') || D.meta.featured;
+  const name = SP.playerName(sid);
+  const self = sid === SP.viewer.steamId;
+  const staff = SP.can('admins.sessions.view');
+  const has = (m) => SP.modules.enabled(m);
+
+  const season = R.rows(R.current).find((r) => r.steam_id === sid);
+  const alltime = R.rows('all').find((r) => r.steam_id === sid);
+  const sessions = D.admins.player_sessions.filter((s) => s.SteamId64 === sid).sort((a, b) => b.ConnectedAt - a.ConnectedAt);
+  const live = sessions.find((s) => s.DisconnectedAt === 0 && SP.now - s.LastSeenAt < 150_000);
+  const lastSeen = sessions[0] ? (sessions[0].DisconnectedAt || sessions[0].LastSeenAt) : season ? fmt.sqlDate(season.last_seen) : null;
+  const admin = D.admins.admins.find((a) => a.SteamId64 === sid);
+  const weight = (v) => D.vipcore.groups.find((g) => g.name === v.group).weight;
+  // VIPCore: the highest weight wins; on equal weight a local grant beats a global (sid 0) one.
+  const vip = SP.vipsOf(sid).sort((a, b) => weight(b) - weight(a) || (b.sid !== 0) - (a.sid !== 0))[0];
+  const elo = D.ranks.ranks_elopoints.find((e) => e.steam_id === sid);
+  const bans = D.admins.bans.filter((b) => b.SteamId64 === sid).map((b) => ({ ...b, kind: 'ban' }));
+  const comms = A.groupComms(D.admins.sanctions.filter((s) => s.SteamId64 === sid));
+  const record = [...bans, ...comms].sort((a, b) => b.CreatedAt - a.CreatedAt);
+  const activeBan = bans.find((b) => A.status(b) === 'active');
+
+  const tabs = [
+    ['overview', 'Overview', has('ranks')],
+    ['weapons', 'Weapons', has('ranks') && sid === D.meta.featured],
+    ['loadout', 'Loadout', has('weaponskins') && sid === D.meta.featured],
+    ['inventory', 'Inventory', has('shop'), SP.shop.owned(sid).filter((x) => x.st.owned).length],
+    ['record', `Punishments`, has('admins'), record.length],
+    ['sessions', 'Sessions', has('admins') && staff, sessions.length],
+  ].filter((t) => t[2]);
+  let tab = location.hash.slice(1).split('?')[0] || 'overview';
+  if (!tabs.some((t) => t[0] === tab)) tab = tabs[0]?.[0];
+
+  const vipGroup = vip && D.vipcore.groups.find((g) => g.name === vip.group);
+  const tone = { LEGEND: 'tone-legend', GOLD: 'tone-gold', SILVER: 'tone-muted' };
+
+  function header() {
+    const tier = season ? R.tier(season.points) : null;
+    return html`<section class="sp-shell mb-3"><div class="sp-shell-body">
+      <div class="p-head">
+        ${SP.avatar(name, sid, 'xl')}
+        <div class="min-w-0">
+          <span class="sp-eyebrow">Player${self ? ' · you' : ''}</span>
+          <div class="p-name">${name}</div>
+          <div class="d-flex flex-wrap gap-2 mt-2">
+            ${live ? html`<span class="sp-pill tone-success"><span class="sp-dot live"></span>Online · ${SP.serverShort(live.Server)} · ${fmt.span(SP.now - live.ConnectedAt)}</span>`
+              : lastSeen ? html`<span class="sp-pill tone-faint"><i class="bi bi-clock-history"></i>Last seen ${fmt.ago(lastSeen)}</span>` : ''}
+            ${vip ? html`<span class="sp-pill ${tone[vip.group]}"><i class="bi bi-gem"></i>VIP ${vip.group} · ${vip.expires === 0 ? 'permanent' : `${fmt.span(vip.expires * 1000 - SP.now)} left`}${vip.sid === 0 ? ' · all servers' : ''}</span>` : ''}
+            ${admin ? html`<span class="sp-pill tone-danger"><i class="bi bi-shield-fill-check"></i>Staff · ${admin.Groups.join(', ')}</span>` : ''}
+            ${has('shop') && (self || SP.can('shop.ledger.view')) ? html`<span class="sp-pill tone-gold" title="Only you and staff see this" data-bs-toggle="tooltip"><i class="bi bi-coin"></i>${fmt.num(SP.shop.credits(sid))} credits</span>` : ''}
+            ${activeBan ? html`<span class="sp-pill solid tone-danger"><i class="bi bi-hammer"></i>Banned · ${A.timeline(activeBan)}</span>` : record.length ? '' : html`<span class="sp-pill tone-success"><i class="bi bi-shield-check"></i>Clean record</span>`}
+          </div>
+          <div class="d-flex flex-wrap gap-3 mt-3 mono fs-8 text-muted2">
+            <span>${sid} <button class="sp-copy" data-copy="${sid}" title="Copy SteamID64"><i class="bi bi-copy"></i></button></span>
+            <span>${SP.steam.id2(sid)}</span><span>${SP.steam.id3(sid)}</span>
+            <a href="${SP.steam.url(sid)}" target="_blank" rel="noopener"><i class="bi bi-steam"></i> Steam profile</a>
+          </div>
+        </div>
+        ${season && has('ranks') ? html`<div class="text-md-end">
+          <span class="sp-eyebrow mb-2">CS Rating · ${R.periodLabel(R.current)}</span>
+          ${R.rating(season.points, 'lg')}
+          <div class="mt-2 sp-display fs-6" style="color:${tier.Hex}">${tier.Name}</div>
+          <div class="fs-8 text-faint">#${R.position(sid, R.current)} of ${R.rows(R.current).length} this season</div>
+        </div>` : html`<span></span>`}
+      </div>
+    </div></section>`;
+  }
+
+  const stat = (label, value, sub = '') => html`<div class="sp-panel"><div class="sp-stat"><span class="sp-stat-label">${label}</span><span class="sp-stat-value fs-4">${value}</span>${sub ? html`<span class="sp-stat-sub">${sub}</span>` : ''}</div></div>`;
+
+  function overview() {
+    if (!season && !alltime) return html`<div class="sp-empty"><i class="bi bi-bar-chart"></i>This player has no statistics stored.</div>`;
+    const s = alltime;
+    const nx = season && R.next(season.points);
+    const pres = R.prestige(alltime.points);
+    const nextPres = D.ranks.prestige.find((l) => l.MinimumPoints > alltime.points);
+    const combos = D.ranks.ranks_combos.filter((c) => c.steam_id === sid).sort((a, b) => b.count - a.count);
+    const history = D.ranks.ranks_players_history.filter((r) => r.steam_id === sid).sort((a, b) => b.period - a.period);
+    return html`
+      <div class="row g-3 mb-3">
+        <div class="col-lg-4"><div class="sp-panel wash h-100">
+          <span class="sp-stat-label">Rank · this season</span>
+          <div class="d-flex align-items-center gap-3 my-2">${R.rating(season.points, 'lg')}</div>
+          ${nx ? html`<div class="d-flex justify-content-between fs-8 mb-1"><span>${R.tier(season.points).Name}</span><span class="mono">${fmt.num(nx.Points - season.points)} XP to ${nx.Name}</span></div>
+            <div class="sp-meter lg tone-accent" style="--v:${((season.points - R.tier(season.points).Points) / (nx.Points - R.tier(season.points).Points)) * 100}%"><i></i></div>`
+            : html`<div class="fs-8 text-gold">Highest rank reached</div>`}
+        </div></div>
+        ${elo && has('ranks') ? html`<div class="col-lg-4"><div class="sp-panel h-100 d-flex gap-3 align-items-center">
+          ${R.level(elo.rating, 'lg')}
+          <div><span class="sp-stat-label">5v5 Elo · ladder comp_</span><div class="sp-stat-value">${fmt.num(elo.rating, 1)}</div>
+            <div class="sp-stat-sub">${elo.matches} matches · ${elo.abandons} abandon${elo.abandons === 1 ? '' : 's'}</div></div></div></div>` : ''}
+        <div class="col-lg-4"><div class="sp-panel featured tone-legend h-100">
+          <span class="sp-stat-label">Prestige · Ranks_Prestige</span>
+          <div class="d-flex align-items-baseline gap-2 my-1"><span class="sp-stat-value">${pres ? `P${pres.Level}` : 'None'}</span>
+            <span class="fs-8 text-faint mono">${fmt.num(alltime.points)} stored XP</span></div>
+          ${nextPres ? html`<div class="d-flex justify-content-between fs-8 mb-1"><span>Next level: ${fmt.num(alltime.points)}/${fmt.num(nextPres.MinimumPoints)}</span></div>
+            <div class="sp-meter tone-legend" style="--v:${(alltime.points / nextPres.MinimumPoints) * 100}%"><i></i></div>` : html`<div class="fs-8">You have reached the highest prestige.</div>`}
+        </div></div>
+      </div>
+      <h2 class="sp-section-title">Statistics <small>all time · core's own figures</small></h2>
+      <div class="stat-grid mb-4">
+        ${stat('Kills', fmt.num(s.kills))}${stat('Deaths', fmt.num(s.deaths))}${stat('K/D', fmt.kd(s.kills, s.deaths).toFixed(2))}
+        ${stat('Assists', fmt.num(s.assists))}${stat('Headshots', fmt.num(s.headshots), `${fmt.pct(s.headshots, s.kills)}% of kills`)}
+        ${stat('Accuracy', `${fmt.pct(s.hits, s.hits + s.misses)}%`, `${fmt.num(s.hits)} hit, ${fmt.num(s.misses)} missed`)}
+        ${stat('Rounds', fmt.num(s.round_wins), `won · ${fmt.num(s.round_losses)} lost`)}${stat('Matches', fmt.num(s.match_wins), `won · ${fmt.num(s.match_losses)} lost`)}
+        ${stat('Bombs', fmt.num(s.bombs_planted), `planted · ${fmt.num(s.bombs_defused)} defused`)}${stat('Playtime', fmt.playtime(s.playtime))}
+      </div>
+      <div class="row g-3">
+        <div class="col-lg-7"><h2 class="sp-section-title">Seasons <small>ranks_players_history</small></h2>
+          <div class="sp-table-wrap"><table class="sp-table compact"><thead><tr><th>Season</th><th>XP</th><th class="r">Kills</th><th class="r">K/D</th><th class="r">Playtime</th></tr></thead><tbody>
+            ${[season, ...history].map((r) => html`<tr><td class="sp-display fs-7">${R.periodLabel(r.period)}${r.period === R.current ? html` <span class="sp-pill tone-accent ms-1">Live</span>` : ''}</td><td>${R.rating(r.points, 'sm')}</td>
+              <td class="r">${fmt.num(r.kills)}</td><td class="r">${fmt.kd(r.kills, r.deaths).toFixed(2)}</td><td class="r mono fs-8">${fmt.playtime(r.playtime)}</td></tr>`)}</tbody></table></div></div>
+        <div class="col-lg-5"><h2 class="sp-section-title">Combos <small>Ranks_CustomCombos</small></h2>
+          <div class="sp-rows">${combos.length ? combos.map((c) => html`<div class="sp-row"><i class="bi bi-stars text-gold"></i><span class="flex-grow-1">${D.ranks.comboNames[c.combo_key] ?? c.combo_key}</span>
+            <span class="sp-display fs-5 num">${c.count}</span></div>`) : html`<div class="sp-panel empty">No combos landed yet.</div>`}</div></div>
+      </div>`;
+  }
+
+  function weapons() {
+    const rows = D.ranks.ranks_weapon_stats.filter((w) => w.steam_id === sid).sort((a, b) => b.kills - a.kills);
+    const hits = D.ranks.ranks_hit_stats.filter((h) => h.steam_id === sid);
+    const total = hits.reduce((n, h) => n + h.hits, 0);
+    const share = (g) => { const h = hits.find((x) => x.hitgroup === g); return h ? fmt.pct(h.hits, total) : 0; };
+    const names = { 1: 'Head', 2: 'Chest', 3: 'Stomach', 4: 'Left arm', 5: 'Right arm', 6: 'Left leg', 7: 'Right leg', 8: 'Neck' };
+    const weaponName = (w) => D.catalog.weapons.find((x) => x.classname === w)?.name ?? w.replace('weapon_', '').toUpperCase();
+    const weaponImg = (w) => D.catalog.weapons.find((x) => x.classname === w)?.image;
+    return html`<div class="row g-4">
+      <div class="col-xl-8"><h2 class="sp-section-title">Weapon stats <small>Ranks_WeaponStats · all time</small></h2>
+        <div class="sp-table-wrap"><table class="sp-table"><thead><tr><th>Weapon</th><th class="r">Kills</th><th class="r">HS</th><th class="r">Accuracy</th><th class="r d-none d-md-table-cell">Damage</th><th class="r d-none d-md-table-cell">Shots</th></tr></thead>
+          <tbody>${rows.map((w) => html`<tr><td><div class="d-flex align-items-center gap-3">${weaponImg(w.weapon) ? html`<img class="w-icon" src="${weaponImg(w.weapon)}" alt="">` : html`<span class="w-icon d-inline-grid text-center text-faint"><i class="bi bi-${w.weapon.includes('knife') ? 'scissors' : 'fire'} fs-4"></i></span>`}
+              <span class="sp-display fs-6">${weaponName(w.weapon)}</span></div></td>
+            <td class="r sp-display fs-6">${fmt.num(w.kills)}</td><td class="r">${fmt.pct(w.headshots, w.kills)}%</td>
+            <td class="r">${w.hits + w.misses ? `${fmt.pct(w.hits, w.hits + w.misses)}%` : html`<span class="text-faint">—</span>`}</td>
+            <td class="r d-none d-md-table-cell text-muted2">${fmt.num(w.damage)}</td><td class="r d-none d-md-table-cell text-muted2">${fmt.num(w.shots)}</td></tr>`)}</tbody></table></div></div>
+      <div class="col-xl-4"><h2 class="sp-section-title">Overall hit stats <small>${fmt.num(total)} hits</small></h2>
+        <div class="sp-panel"><div class="row g-3 align-items-center">
+          <div class="col-5 sp-hitbox"><svg viewBox="0 0 120 192" role="img" aria-label="Hit distribution">
+            <circle class="zone" cx="60" cy="20" r="15" style="--share:${share(1)}"><title>Head: ${share(1)}%</title></circle>
+            <rect class="zone" x="53" y="36" width="14" height="8" rx="2" style="--share:${share(8)}"><title>Neck: ${share(8)}%</title></rect>
+            <rect class="zone" x="36" y="45" width="48" height="38" rx="6" style="--share:${share(2)}"><title>Chest: ${share(2)}%</title></rect>
+            <rect class="zone" x="39" y="85" width="42" height="28" rx="5" style="--share:${share(3)}"><title>Stomach: ${share(3)}%</title></rect>
+            <rect class="zone" x="16" y="47" width="17" height="62" rx="7" style="--share:${share(5)}"><title>Right arm: ${share(5)}%</title></rect>
+            <rect class="zone" x="87" y="47" width="17" height="62" rx="7" style="--share:${share(4)}"><title>Left arm: ${share(4)}%</title></rect>
+            <rect class="zone" x="40" y="115" width="19" height="74" rx="7" style="--share:${share(7)}"><title>Right leg: ${share(7)}%</title></rect>
+            <rect class="zone" x="61" y="115" width="19" height="74" rx="7" style="--share:${share(6)}"><title>Left leg: ${share(6)}%</title></rect>
+          </svg></div>
+          <div class="col-7 d-flex flex-column gap-1">${hits.sort((a, b) => b.hits - a.hits).map((h) => html`<div>
+            <div class="d-flex justify-content-between fs-8"><span>${names[h.hitgroup]}</span><span class="mono">${share(h.hitgroup)}%</span></div>
+            <div class="sp-meter" style="--v:${share(h.hitgroup) * 2.5}%"><i></i></div></div>`)}</div>
+        </div></div></div>
+    </div>`;
+  }
+
+  function loadout() {
+    const team = Number(new URLSearchParams(location.hash.split('?')[1] || '').get('team') || 2);
+    const items = SP.ws.loadout(team);
+    const W = D.weaponskins;
+    const agent = D.catalog.agents.find((a) => a.defindex === W.wp_player_agents.find((x) => x.steamid === sid && x.weapon_team === team)?.agent_index);
+    const music = D.catalog.music.find((m) => m.defindex === W.wp_player_music.find((x) => x.steamid === sid)?.music_id);
+    const pin = D.catalog.pins.find((p) => p.defindex === W.wp_player_pins.find((x) => x.steamid === sid && x.weapon_team === team)?.id);
+    const extra = (label, item) => item ? html`<div class="sp-tile rarity static r-${SP.cat.rarity(item.color)}"><div class="sp-tile-thumb"><img src="${item.image}" alt="" loading="lazy"></div>
+      <div class="sp-tile-type">${label}</div><div class="sp-tile-name">${item.name.replace(/^Music Kit \| /, '').replace(/ \|.*$/, '')}</div></div>` : '';
+    return html`<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div class="sp-tabs"><button class="sp-tab ${team === 2 ? 'active' : ''}" data-team="2"><i class="bi bi-circle-fill text-hue tone-t"></i>Terrorist</button>
+          <button class="sp-tab ${team === 3 ? 'active' : ''}" data-team="3"><i class="bi bi-circle-fill text-hue tone-ct"></i>Counter-Terrorist</button></div>
+        ${self ? html`<a class="btn btn-primary btn-sm" href="skins.html"><i class="bi bi-crosshair me-1"></i>Edit in skin changer</a>` : ''}</div>
+      <div class="sp-grid" style="--min:190px">
+        ${items.map((x) => {
+          const [, ext] = SP.cat.exterior(x.row.weapon_wear);
+          const stickers = [0, 1, 2, 3, 4, 5].map((i) => SP.ws.sticker(x.row[`weapon_sticker_${i}`])).filter(Boolean);
+          return html`<div class="sp-tile rarity static r-${SP.cat.rarity(x.paint?.color)}">
+            ${x.row.weapon_stattrak ? html`<span class="sp-corner"><span class="sp-pill solid tone-t">ST™ ${fmt.num(x.row.weapon_stattrak_count)}</span></span>` : ''}
+            <div class="sp-tile-thumb"><img src="${x.paint?.image ?? x.item.image}" alt="" loading="lazy"></div>
+            <div class="sp-tile-type">${x.slot === 'knife' || x.slot === 'gloves' ? '★ ' : ''}${x.item.name}</div>
+            <div class="sp-tile-name">${x.paint ? x.paint.name : 'Vanilla'}${x.paint?.phase ? ` · ${x.paint.phase}` : ''}</div>
+            <div class="fs-8 text-muted2 mono">${ext} · ${x.row.weapon_wear.toFixed(4)}${x.row.weapon_seed ? ` · #${x.row.weapon_seed}` : ''}</div>
+            ${x.row.weapon_nametag ? html`<div class="nametag">“${x.row.weapon_nametag}”</div>` : ''}
+            ${stickers.length ? html`<div class="stickers d-flex justify-content-center gap-1 mt-1">${stickers.map((s) => s.image ? html`<img src="${s.image}" alt="${s.name}" title="${s.name}">` : '')}</div>` : ''}
+          </div>`;
+        })}
+        ${extra('Agent', agent)}${extra('Music kit', music)}${extra('Pin', pin)}
+      </div>
+      <div class="fs-8 text-faint mt-3">From <span class="mono">wp_player_*</span>. Music kits and pins count for both teams.</div>`;
+  }
+
+  function inventoryTab() {
+    const X = SP.shop;
+    const owned = X.owned(sid).filter((x) => x.st.owned).sort((a, b) => a.item.category.localeCompare(b.item.category) || a.item.display_name.localeCompare(b.item.display_name));
+    const left = (st) => (st.unstarted ? 'Starts when equipped' : st.expireAt ? `${fmt.span(st.expireAt * 1000 - SP.now)} left` : 'Permanent');
+    return html`<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <span class="fs-8 text-faint">ShopCore items in ${self ? 'your' : 'this player\u2019s'} <span class="mono">PlayerCookies</span> row. Equipped ones are what others see in game.</span>
+        ${self ? html`<a class="btn btn-primary btn-sm" href="shop.html#inventory"><i class="bi bi-bag-fill me-1"></i>Open the shop</a>` : ''}</div>
+      ${owned.length ? html`<div class="sp-grid" style="--min:170px">${owned.map(({ item: i, st }) => html`<a class="sp-tile rarity static ${st.enabled ? 'tone-accent' : 'tone-muted'}" href="shop.html?item=${i.item_id}">
+          ${st.enabled ? html`<span class="sp-corner"><span class="sp-pill solid tone-accent">Equipped</span></span>` : ''}
+          <div class="sp-tile-thumb">${X.art(i)}</div>
+          <div class="sp-tile-type">${X.path(i)[1] ?? X.path(i)[0]}</div><div class="sp-tile-name" title="${i.display_name}">${i.display_name}</div>
+          <div class="fs-8 text-muted2 mt-1">${left(st)}</div></a>`)}</div>`
+        : html`<div class="sp-empty"><i class="bi bi-bag"></i>No shop items</div>`}`;
+  }
+
+  function punishments() {
+    if (!record.length) return html`<div class="sp-empty"><i class="bi bi-shield-check"></i>No punishments on record</div>`;
+    return html`<div class="sp-rows">${record.map((r) => html`<a class="sp-row" href="punishments.html?tab=${r.kind === 'ban' ? 'bans' : 'comms'}">
+      ${r.kind === 'ban' ? html`<span class="sp-pill tone-danger"><i class="bi bi-hammer"></i>Ban</span>` : A.kindPill(r.kind)}
+      <span class="min-w-0 flex-grow-1"><span class="d-block">${r.Reason} <span class="text-faint">· ${A.length(r)}</span></span>
+        <span class="sp-row-sub">#${r.ids?.join('+') ?? r.Id} · ${fmt.date(r.CreatedAt)} · by ${r.AdminName} · ${A.timeline(r, r.kind === 'ban' ? 'ban' : r.kind)}</span></span>
+      ${A.scope(r)}<span class="end">${A.statusPill(r, r.kind === 'ban' ? 'ban' : r.kind)}</span></a>`)}</div>`;
+  }
+
+  function sessionsTab() {
+    const dayStart = Date.parse('2026-11-09T22:00:00Z');
+    const played = (from) => sessions.reduce((n, s) => n + Math.max(0, (s.DisconnectedAt || SP.now) - Math.max(s.ConnectedAt, from)), 0);
+    const ips = [...sessions.reduce((m, s) => m.set(s.PlayerIp, (m.get(s.PlayerIp) ?? 0) + 1), new Map())];
+    const seeIp = SP.can('admins.ip.view');
+    return html`
+      <div class="sp-callout tone-caution mb-3"><i class="bi bi-incognito"></i><div><strong>Staff only.</strong> Sessions show IP addresses — the same rule as the plugin's <span class="mono">!sessions</span> (needs <span class="mono">admins.sessions.view</span>).</div></div>
+      <div class="sp-kpis mb-3">
+        ${[['Today', dayStart], ['This week', Date.parse('2026-11-08T22:00:00Z')], ['This month', Date.parse('2026-10-31T22:00:00Z')], ['Total', 0]].map(([l, from]) =>
+          html`<div class="sp-kpi tone-info"><i class="bi bi-clock-history"></i><div class="sp-stat"><span class="sp-stat-value fs-5">${fmt.span(played(from))}</span><span class="sp-stat-label">${l}</span></div></div>`)}
+      </div>
+      <div class="row g-3">
+        <div class="col-lg-4"><h2 class="sp-section-title">Addresses</h2><div class="sp-rows">${ips.map(([ip, n]) => html`<div class="sp-row"><span class="mono">${seeIp ? ip : A.maskIp(ip)}</span><span class="end fs-8 text-muted2">${n} session(s)</span></div>`)}</div>
+          <div class="fs-8 text-faint mt-2">Other accounts on these addresses: none found.</div></div>
+        <div class="col-lg-8"><h2 class="sp-section-title">Latest connections <small>retention 90 days</small></h2>
+          <div class="sp-table-wrap"><table class="sp-table compact"><thead><tr><th>Server</th><th>Connected</th><th class="r">Length</th><th>Address</th></tr></thead><tbody>
+          ${sessions.slice(0, 12).map((s) => html`<tr><td>${SP.serverShort(s.Server)}</td><td class="fs-7">${fmt.date(s.ConnectedAt)}</td>
+            <td class="r mono fs-8">${s.DisconnectedAt ? fmt.span(s.DisconnectedAt - s.ConnectedAt) : html`<span class="sp-pill tone-success">live</span>`}</td>
+            <td class="mono fs-8 text-muted2">${seeIp ? s.PlayerIp : A.maskIp(s.PlayerIp)}</td></tr>`)}</tbody></table></div></div>
+      </div>`;
+  }
+
+  function render() {
+    const body = { overview, weapons, loadout, inventory: inventoryTab, record: punishments, sessions: sessionsTab }[tab];
+    mount('#page', html`${header()}
+      <section class="sp-shell"><div class="sp-shell-head pb-2">
+        <div class="sp-tabs">${tabs.map(([id, label, , n]) => html`<button class="sp-tab ${id === tab ? 'active' : ''}" data-tab="${id}">${label}${n !== undefined ? html` <span class="count">${n}</span>` : ''}</button>`)}</div>
+      </div><div class="sp-rule"></div><div class="sp-shell-body">${body ? body() : ''}</div></section>`);
+    document.title = `${name} · SwiftlyS2 Panel mockup`;
+    SP.tips();
+  }
+
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-tab]');
+    if (t) { tab = t.dataset.tab; history.replaceState(null, '', `#${tab}`); render(); }
+    const tm = e.target.closest('[data-team]');
+    if (tm) { history.replaceState(null, '', `#loadout?team=${tm.dataset.team}`); render(); }
+  });
+  render();
+})();
+</script>
+</body>
+</html>
